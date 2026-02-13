@@ -2,7 +2,8 @@
 ###############################################################################
 # health-check.sh -- Stack health verification
 #
-# Checks all services and reports status.
+# Runs on the macOS host. Docker stack is local; OpenClaw is in the VM
+# (reachable via localhost:OPENCLAW_PORT port forward).
 # Exit code: 0 if all healthy, 1 if any unhealthy.
 ###############################################################################
 set -euo pipefail
@@ -18,8 +19,9 @@ if [ -f "$ENV_FILE" ]; then
   set +a
 fi
 
-N8N_URL="${N8N_URL:-http://localhost:${N8N_PORT:-5678}}"
+N8N_URL="http://localhost:${N8N_PORT:-5678}"
 VAULT_URL="http://localhost:${VAULT_PORT:-8200}"
+OPENCLAW_URL="http://localhost:${OPENCLAW_PORT:-18789}"
 HEALTHY=true
 
 # Colors
@@ -32,28 +34,38 @@ check() {
   local name="$1"
   local status="$2"
 
-  if [ "$status" = "OK" ]; then
-    printf "  ${GREEN}✓${NC} %-25s %s\n" "$name" "$status"
-  elif [ "$status" = "WARN" ]; then
-    printf "  ${YELLOW}!${NC} %-25s %s\n" "$name" "${3:-Warning}"
-  else
-    printf "  ${RED}✗${NC} %-25s %s\n" "$name" "$status"
-    HEALTHY=false
-  fi
+  case "$status" in
+    OK*)
+      printf "  ${GREEN}✓${NC} %-25s %s\n" "$name" "$status"
+      ;;
+    WARN*)
+      printf "  ${YELLOW}!${NC} %-25s %s\n" "$name" "${3:-$status}"
+      ;;
+    *)
+      printf "  ${RED}✗${NC} %-25s %s\n" "$name" "$status"
+      HEALTHY=false
+      ;;
+  esac
 }
 
-echo "=== Health Check ==="
+echo "=== Health Check (macOS host) ==="
 echo ""
 
 # --- Docker Containers ---
 echo "Docker Containers:"
-for container in $(docker compose ps --format '{{.Name}}' 2>/dev/null); do
-  status=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || \
-           docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || \
-           echo "not found")
+for container in $(docker compose -f "${PROJECT_DIR}/docker-compose.yml" ps --format '{{.Name}}' 2>/dev/null); do
+  health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container" 2>/dev/null || echo "")
+  state=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "not found")
+
+  if [ -n "$health" ]; then
+    status="$health"
+  else
+    status="$state"
+  fi
 
   case "$status" in
     healthy|running)  check "$container" "OK" ;;
+    starting)         check "$container" "OK (starting)" ;;
     unhealthy)        check "$container" "UNHEALTHY" ;;
     *)                check "$container" "FAIL: ${status}" ;;
   esac
@@ -80,7 +92,7 @@ echo ""
 # --- Vault ---
 echo "Vault:"
 vault_status=$(curl -s "${VAULT_URL}/v1/sys/seal-status" 2>/dev/null || echo '{}')
-sealed=$(echo "$vault_status" | jq -r '.sealed // "unknown"')
+sealed=$(echo "$vault_status" | jq -r 'if has("sealed") then .sealed | tostring else "unknown" end')
 if [ "$sealed" = "false" ]; then
   check "Vault seal status" "OK (unsealed)"
 elif [ "$sealed" = "true" ]; then
@@ -110,7 +122,18 @@ else
 fi
 echo ""
 
-# --- Disk Usage ---
+# --- OpenClaw (in VM, via port forward) ---
+echo "OpenClaw (VM):"
+oc_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "${OPENCLAW_URL}" 2>/dev/null || echo "000")
+if [ "$oc_code" != "000" ]; then
+  check "OpenClaw gateway" "OK (HTTP ${oc_code})"
+else
+  check "OpenClaw gateway" "FAIL: unreachable at ${OPENCLAW_URL}"
+fi
+echo ""
+
+# --- Disk Usage (macOS) ---
+echo "System:"
 disk_usage=$(df -h / 2>/dev/null | tail -1 | awk '{print $5}' | tr -d '%')
 if [ -n "$disk_usage" ] && [ "$disk_usage" -lt 80 ]; then
   check "Disk usage" "OK (${disk_usage}%)"
@@ -120,21 +143,26 @@ else
   check "Disk usage" "FAIL: ${disk_usage:-unknown}% used"
 fi
 
-# --- Memory ---
-if command -v free &>/dev/null; then
-  mem_available=$(free -m | awk '/^Mem:/{print $7}')
-  mem_total=$(free -m | awk '/^Mem:/{print $2}')
-  if [ -n "$mem_available" ] && [ -n "$mem_total" ] && [ "$mem_total" -gt 0 ]; then
-    mem_pct=$(( (mem_total - mem_available) * 100 / mem_total ))
-    if [ "$mem_pct" -lt 85 ]; then
-      check "Memory" "OK (${mem_pct}% used, ${mem_available}MB free)"
-    else
-      check "Memory" "WARN" "${mem_pct}% used"
+# macOS memory via vm_stat
+if command -v vm_stat &>/dev/null; then
+  page_size=$(vm_stat | head -1 | grep -oE '[0-9]+')
+  pages_free=$(vm_stat | awk '/Pages free/{gsub(/\./,""); print $3}')
+  pages_inactive=$(vm_stat | awk '/Pages inactive/{gsub(/\./,""); print $3}')
+  pages_active=$(vm_stat | awk '/Pages active/{gsub(/\./,""); print $3}')
+  pages_wired=$(vm_stat | awk '/Pages wired/{gsub(/\./,""); print $4}')
+  if [ -n "$pages_free" ] && [ -n "$pages_active" ] && [ -n "$pages_wired" ]; then
+    total_used=$(( (pages_active + pages_wired) * page_size / 1048576 ))
+    total_free=$(( (pages_free + pages_inactive) * page_size / 1048576 ))
+    total=$(( total_used + total_free ))
+    if [ "$total" -gt 0 ]; then
+      mem_pct=$(( total_used * 100 / total ))
+      if [ "$mem_pct" -lt 85 ]; then
+        check "Memory" "OK (${mem_pct}% used, ${total_free}MB free)"
+      else
+        check "Memory" "WARN" "${mem_pct}% used"
+      fi
     fi
   fi
-else
-  # macOS doesn't have free; skip or use vm_stat
-  check "Memory" "OK (run inside VM for memory stats)"
 fi
 
 echo ""

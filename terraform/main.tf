@@ -10,13 +10,6 @@ module "parallels_vm" {
   source = "./modules/parallels-vm"
 
   parallels_password = var.parallels_password
-  vm_name            = var.vm_name
-  vm_cpu             = var.vm_cpu
-  vm_memory          = var.vm_memory
-  vm_ssh_port        = var.vm_ssh_port
-  n8n_port           = var.n8n_port
-  vault_port         = var.vault_port
-  shared_dir         = var.shared_dir
 }
 
 # =============================================================================

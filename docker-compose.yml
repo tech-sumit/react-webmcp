@@ -1,7 +1,8 @@
 ###############################################################################
-# AI-Native n8n Automation System -- VM Docker Compose Stack (9 services)
+# AI-Native n8n Automation System -- Docker Compose Stack (9 services)
 #
-# Runs inside the Parallels Ubuntu 24.04 VM.
+# Runs on the macOS host via Docker Desktop.
+# The Parallels VM is only for OpenClaw (AI agent).
 # All config flows from .env via ${VAR:-default} syntax.
 ###############################################################################
 
@@ -33,7 +34,7 @@ services:
       - N8N_API_KEY=${N8N_API_KEY}
       # Auth: n8n v1.0+ uses built-in user management (basic auth env vars removed)
       # Queue mode (Redis)
-      - EXECUTIONS_MODE=${N8N_EXECUTIONS_MODE:-queue}
+      - EXECUTIONS_MODE=${N8N_EXECUTIONS_MODE:-regular}
       - QUEUE_BULL_REDIS_HOST=redis
       - QUEUE_BULL_REDIS_PORT=${REDIS_PORT:-6379}
       - QUEUE_BULL_REDIS_PASSWORD=${REDIS_PASSWORD:-}
@@ -216,7 +217,6 @@ services:
       - ./config/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/log:/var/log:ro
-      - /home/parallels/.openclaw/logs:/home/parallels/.openclaw/logs:ro
     command:
       - run
       - /etc/alloy/config.alloy
@@ -247,7 +247,7 @@ services:
       - n8n-net
 
   # ===========================================================================
-  # Node Exporter (VM System Metrics)
+  # Node Exporter (Host System Metrics)
   # ===========================================================================
   node-exporter:
     image: prom/node-exporter:latest
@@ -257,7 +257,7 @@ services:
       - "--path.rootfs=/host"
       - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     volumes:
-      - /:/host:ro,rslave
+      - /:/host:ro
     networks:
       - n8n-net
 

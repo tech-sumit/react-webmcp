@@ -8,11 +8,11 @@ terraform {
   required_providers {
     parallels-desktop = {
       source  = "Parallels/parallels-desktop"
-      version = ">= 0.5.0"
+      version = ">= 0.7.0"
     }
     cloudflare = {
       source  = "cloudflare/cloudflare"
-      version = ">= 4.0"
+      version = "~> 4.0"
     }
     aws = {
       source  = "hashicorp/aws"
@@ -45,8 +45,10 @@ provider "aws" {
   access_key = var.aws_access_key
   secret_key = var.aws_secret_key
 
-  # Skip validation if credentials are empty (module not used)
-  skip_credentials_validation = var.aws_access_key == "" ? true : false
+  # Skip all validation when credentials are not provided
+  skip_credentials_validation = true
+  skip_requesting_account_id  = true
+  skip_metadata_api_check     = true
 }
 
 # GitHub provider (optional)

@@ -20,30 +20,6 @@ variable "parallels_password" {
   sensitive   = true
 }
 
-variable "vm_name" {
-  description = "VM display name"
-  type        = string
-  default     = "n8n-ai-worker"
-}
-
-variable "vm_cpu" {
-  description = "Number of vCPUs for the VM"
-  type        = string
-  default     = "4"
-}
-
-variable "vm_memory" {
-  description = "RAM in MB for the VM"
-  type        = string
-  default     = "8192"
-}
-
-variable "vm_ssh_port" {
-  description = "Host port forwarded to VM SSH"
-  type        = string
-  default     = "2222"
-}
-
 # =============================================================================
 # Cloudflare
 # =============================================================================
@@ -142,8 +118,3 @@ variable "project_name" {
   default     = "n8n-ai"
 }
 
-variable "shared_dir" {
-  description = "Path to shared directory"
-  type        = string
-  default     = "./shared"
-}

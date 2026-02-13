@@ -38,7 +38,7 @@ resource "github_repository_webhook" "n8n" {
   repository = github_repository.workflows.name
 
   configuration {
-    url          = "https://n8n.example.com/webhook/github"
+    url          = "https://n8n.panditai.org/webhook/github"
     content_type = "json"
     insecure_ssl = false
   }

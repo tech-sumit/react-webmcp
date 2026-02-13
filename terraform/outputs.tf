@@ -2,11 +2,6 @@
 # Root Terraform Outputs
 ###############################################################################
 
-output "vm_name" {
-  description = "Name of the created VM"
-  value       = module.parallels_vm.vm_name
-}
-
 output "vm_ssh_command" {
   description = "SSH command to connect to the VM"
   value       = module.parallels_vm.ssh_command
@@ -25,6 +20,7 @@ output "vault_local_url" {
 output "cloudflare_dns_record" {
   description = "Cloudflare DNS record for n8n"
   value       = var.cloudflare_api_token != "" ? module.cloudflare[0].dns_record : "Not configured"
+  sensitive   = true
 }
 
 output "cloudflare_tunnel_token" {

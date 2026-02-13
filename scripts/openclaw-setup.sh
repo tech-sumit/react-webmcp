@@ -2,35 +2,29 @@
 ###############################################################################
 # openclaw-setup.sh -- Configure OpenClaw agent
 #
-# Pulls secrets from Vault, templates openclaw.json, starts daemon.
-# Runs inside the VM after docker compose is up and Vault is seeded.
+# Uses `openclaw config set` CLI to configure properly.
+# Runs inside the VM. n8n is on the macOS host, reachable via HOST_IP.
 ###############################################################################
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="${SCRIPT_DIR}/.."
-OPENCLAW_DIR="${PROJECT_DIR}/openclaw"
+# These are passed as env vars from the Makefile
+HOST_IP="${HOST_IP:-10.211.55.2}"
+N8N_PORT="${N8N_PORT:-5678}"
+VAULT_PORT="${VAULT_PORT:-8200}"
+VAULT_ADDR="http://${HOST_IP}:${VAULT_PORT}"
+VAULT_TOKEN="${VAULT_ROOT_TOKEN:-${VAULT_TOKEN:-}}"
+OPENCLAW_PORT="${OPENCLAW_PORT:-18789}"
 OPENCLAW_HOME="${HOME}/.openclaw"
 
-# Load .env for secrets
-ENV_FILE="${PROJECT_DIR}/.env"
-if [ -f "$ENV_FILE" ]; then
-  set -a
-  source "$ENV_FILE"
-  set +a
-fi
-
-VAULT_ADDR="${VAULT_ADDR:-http://localhost:${VAULT_PORT:-8200}}"
-VAULT_TOKEN="${VAULT_TOKEN:-${VAULT_ROOT_TOKEN:-}}"
-
 echo "=== OpenClaw Setup ==="
+echo "  HOST_IP: ${HOST_IP}"
+echo "  n8n:     http://${HOST_IP}:${N8N_PORT}"
 
-# 1. Check OpenClaw (installed by Terraform provisioner)
-echo "OpenClaw version: $(openclaw --version 2>/dev/null || echo 'not installed -- run terraform apply')"
+# 1. Check OpenClaw is installed
+echo "OpenClaw version: $(openclaw --version 2>/dev/null || echo 'not installed')"
 
-# 2. Pull secrets from Vault
-echo "Pulling secrets from Vault..."
-# Preserve any value from environment before attempting Vault lookup
+# 2. Pull secrets from Vault (running on host, reachable via HOST_IP)
+echo "Pulling secrets from Vault at ${VAULT_ADDR}..."
 local_api_key="${OPENCLAW_API_KEY:-}"
 OPENCLAW_API_KEY=""
 
@@ -58,76 +52,71 @@ fi
 # 3. Create OpenClaw home directory
 mkdir -p "${OPENCLAW_HOME}/workspace/skills"
 mkdir -p "${OPENCLAW_HOME}/logs"
+mkdir -p "${OPENCLAW_HOME}/agents/main/sessions"
+mkdir -p "${OPENCLAW_HOME}/credentials"
 
-# 4. Template openclaw.json with secrets
-echo "Templating openclaw.json..."
-PROVIDER="${OPENCLAW_MODEL_PROVIDER:-anthropic}"
-MODEL="${OPENCLAW_MODEL:-claude-sonnet-4-20250514}"
-LOG_LEVEL="${OPENCLAW_LOG_LEVEL:-info}"
-TELEMETRY="${OPENCLAW_TELEMETRY_ENABLED:-true}"
-PORT="${OPENCLAW_PORT:-18789}"
+# 4. Reset to clean config, then set values via CLI
+echo "Configuring OpenClaw via CLI..."
 
-# Coerce telemetry to boolean
-case "$TELEMETRY" in
-  true|1|yes) TELEMETRY_BOOL=true ;;
-  *)          TELEMETRY_BOOL=false ;;
-esac
+# Remove stale config to start fresh
+rm -f "${OPENCLAW_HOME}/openclaw.json"
 
-N8N_MCP_URL="${N8N_MCP_URL:-http://localhost:5678/mcp/sse}"
+# Set gateway mode, port, and bind to LAN (so host can reach via port forward)
+openclaw config set gateway.mode local 2>/dev/null || true
+openclaw config set gateway.port "$OPENCLAW_PORT" 2>/dev/null || true
+openclaw config set gateway.bind lan 2>/dev/null || true
 
-jq -n \
-  --arg provider "$PROVIDER" \
-  --arg model "$MODEL" \
-  --arg apiKey "$OPENCLAW_API_KEY" \
-  --argjson port "$PORT" \
-  --arg logLevel "$LOG_LEVEL" \
-  --argjson telemetry "$TELEMETRY_BOOL" \
-  --arg mcpUrl "$N8N_MCP_URL" \
-  '{
-    ai: { provider: $provider, model: $model, apiKey: $apiKey },
-    gateway: { port: $port },
-    logging: { level: $logLevel, consoleLevel: "warn" },
-    plugins: {
-      entries: {
-        telemetry: {
-          enabled: $telemetry,
-          config: {
-            enabled: $telemetry,
-            redact: { enabled: true },
-            integrity: { enabled: true },
-            rateLimit: { enabled: true, maxEventsPerSecond: 100 },
-            rotate: { enabled: true, maxSizeBytes: 52428800, maxFiles: 10 }
-          }
-        }
-      }
-    },
-    mcp: {
-      servers: {
-        n8n: { type: "sse", url: $mcpUrl }
-      }
-    }
-  }' > "${OPENCLAW_HOME}/openclaw.json"
-
-echo "  Written: ${OPENCLAW_HOME}/openclaw.json"
-
-# 5. Copy workspace files to OpenClaw home
-echo "Copying workspace files..."
-if [ -d "${OPENCLAW_DIR}/workspace" ]; then
-  cp -r "${OPENCLAW_DIR}/workspace/"* "${OPENCLAW_HOME}/workspace/" 2>/dev/null || true
-  echo "  Copied workspace files to ${OPENCLAW_HOME}/workspace/"
+# Set model provider: Anthropic with API key
+if [ -n "$OPENCLAW_API_KEY" ]; then
+  echo "  Setting Anthropic API key..."
+  openclaw config set models.providers.anthropic.apiKey "$OPENCLAW_API_KEY" 2>/dev/null || true
+  openclaw config set agents.defaults.model.primary "anthropic/claude-sonnet-4-20250514" 2>/dev/null || true
 fi
 
-# 6. Install daemon
-echo "Installing OpenClaw daemon..."
-openclaw onboard --install-daemon 2>/dev/null || \
-  echo "  WARNING: Daemon installation may require manual setup"
+# Set workspace to the OpenClaw home directory
+openclaw config set agents.defaults.workspace "${OPENCLAW_HOME}/workspace" 2>/dev/null || true
 
-# 7. Start gateway
+# Fix config file permissions (security audit flagged this)
+chmod 600 "${OPENCLAW_HOME}/openclaw.json" 2>/dev/null || true
+chmod 700 "${OPENCLAW_HOME}" 2>/dev/null || true
+
+# Run doctor to fix any remaining issues
+openclaw doctor --fix 2>/dev/null || true
+
+# 5. Create .env with n8n connection info for skills/tools
+cat > "${OPENCLAW_HOME}/.env" << EOF
+# n8n API (running on macOS host)
+N8N_URL=http://${HOST_IP}:${N8N_PORT}
+N8N_API_KEY=${N8N_API_KEY:-}
+# Vault (running on macOS host)
+VAULT_ADDR=${VAULT_ADDR}
+VAULT_TOKEN=${VAULT_TOKEN}
+# Anthropic
+ANTHROPIC_API_KEY=${OPENCLAW_API_KEY}
+EOF
+chmod 600 "${OPENCLAW_HOME}/.env"
+echo "  Written: ${OPENCLAW_HOME}/.env"
+
+# 6. Start gateway
 echo "Starting OpenClaw gateway..."
-openclaw gateway start 2>/dev/null || \
-  echo "  WARNING: Gateway start may require manual intervention"
+# Kill any existing gateway process
+pkill -f "openclaw gateway" 2>/dev/null || true
+sleep 1
 
-# 8. Verify
+# Start gateway in background (--bind lan so host can reach via NAT port forward)
+setsid openclaw gateway --port "${OPENCLAW_PORT}" --bind lan </dev/null > "${OPENCLAW_HOME}/logs/gateway.log" 2>&1 &
+GATEWAY_PID=$!
+echo "  Gateway started (PID: ${GATEWAY_PID})"
+
+# Wait for gateway to be ready
+sleep 5
+if curl -s --max-time 3 "http://127.0.0.1:${OPENCLAW_PORT}" >/dev/null 2>&1; then
+  echo "  Gateway reachable at port ${OPENCLAW_PORT}"
+else
+  echo "  WARNING: Gateway may still be starting. Check: curl http://localhost:${OPENCLAW_PORT}"
+fi
+
+# 7. Verify
 echo ""
 echo "=== OpenClaw Setup Complete ==="
 openclaw status 2>/dev/null || echo "  Run 'openclaw status' to verify"

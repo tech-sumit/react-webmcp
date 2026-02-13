@@ -25,10 +25,6 @@ set +a
 # Map .env vars to Terraform variable names
 export TF_VAR_parallels_license="${PARALLELS_LICENSE:-}"
 export TF_VAR_parallels_password="${PRLDEVOPS_ROOT_PASSWORD:-}"
-export TF_VAR_vm_name="${VM_NAME:-n8n-ai-worker}"
-export TF_VAR_vm_cpu="${VM_CPU_COUNT:-4}"
-export TF_VAR_vm_memory="${VM_MEMORY_MB:-8192}"
-export TF_VAR_vm_ssh_port="${VM_SSH_PORT:-2222}"
 
 # Cloudflare
 export TF_VAR_cloudflare_api_token="${CLOUDFLARE_API_TOKEN:-}"
@@ -52,4 +48,3 @@ export TF_VAR_vault_port="${VAULT_PORT:-8200}"
 
 # Project
 export TF_VAR_project_name="${PROJECT_NAME:-n8n-ai}"
-export TF_VAR_shared_dir="${SHARED_DIR:-./shared}"

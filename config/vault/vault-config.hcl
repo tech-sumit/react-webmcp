@@ -11,10 +11,9 @@ storage "file" {
   path = "/vault/file"
 }
 
-listener "tcp" {
-  address     = "0.0.0.0:8200"
-  tls_disable = 1
-}
+# listener "tcp" is handled by -dev mode via VAULT_DEV_LISTEN_ADDRESS
+# Do NOT define a listener here when using -dev, or Vault will fail
+# with "address already in use".
 
 api_addr = "http://127.0.0.1:8200"
 
