@@ -1,0 +1,210 @@
+///////////////////////////////////////////////////////////////////////////////
+// Grafana Alloy Configuration
+// Unified collector: scrapes metrics + logs, relays to Grafana Cloud
+///////////////////////////////////////////////////////////////////////////////
+
+// =============================================================================
+// Prometheus Remote Write (to Grafana Cloud Mimir)
+// =============================================================================
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_CLOUD_PROMETHEUS_URL")
+
+    basic_auth {
+      username = env("GRAFANA_CLOUD_USER")
+      password = env("GRAFANA_CLOUD_API_KEY")
+    }
+
+    queue_config {
+      max_samples_per_send = 1000
+      batch_send_deadline  = "5s"
+    }
+  }
+}
+
+// =============================================================================
+// Loki Write (to Grafana Cloud Loki)
+// =============================================================================
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_CLOUD_LOKI_URL")
+
+    basic_auth {
+      username = env("GRAFANA_CLOUD_USER")
+      password = env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+}
+
+// =============================================================================
+// Metric Scrape Targets
+// =============================================================================
+
+// n8n Prometheus metrics
+prometheus.scrape "n8n" {
+  targets = [{
+    __address__ = "n8n:5678",
+  }]
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  metrics_path    = "/metrics"
+  scrape_interval = env("ALLOY_SCRAPE_INTERVAL")
+  job_name        = "n8n"
+}
+
+// cAdvisor container metrics
+prometheus.scrape "cadvisor" {
+  targets = [{
+    __address__ = "cadvisor:8080",
+  }]
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  metrics_path    = "/metrics"
+  scrape_interval = env("ALLOY_SCRAPE_INTERVAL")
+  job_name        = "cadvisor"
+}
+
+// Node Exporter VM system metrics
+prometheus.scrape "node_exporter" {
+  targets = [{
+    __address__ = "node-exporter:9100",
+  }]
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  metrics_path    = "/metrics"
+  scrape_interval = env("ALLOY_SCRAPE_INTERVAL")
+  job_name        = "node-exporter"
+}
+
+// Parallels DevOps API (macOS host metrics)
+prometheus.scrape "prldevops" {
+  targets = [{
+    __address__ = env("HOST_IP") + ":8080",
+  }]
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  metrics_path    = "/api/v1/metrics"
+  scrape_interval = env("ALLOY_SCRAPE_INTERVAL")
+  job_name        = "prldevops"
+}
+
+// =============================================================================
+// Docker Container Log Collection
+// =============================================================================
+
+// Discover Docker containers
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Relabel: extract container name, compose service, etc.
+discovery.relabel "docker_logs" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container_name"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "project"
+  }
+}
+
+// Collect logs from Docker containers via log files
+loki.source.docker "container_logs" {
+  host    = "unix:///var/run/docker.sock"
+  targets = discovery.relabel.docker_logs.output
+
+  forward_to = [loki.process.docker_logs.receiver]
+}
+
+// Process Docker logs: parse JSON where possible, add labels
+loki.process "docker_logs" {
+  // Try to parse JSON logs (n8n outputs JSON)
+  stage.json {
+    expressions = {
+      level   = "level",
+      message = "message",
+    }
+  }
+
+  // Add extracted level as a label
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+// =============================================================================
+// OpenClaw Log Collection (JSONL files)
+// =============================================================================
+
+// OpenClaw gateway logs
+local.file_match "openclaw_logs" {
+  path_targets = [{
+    __path__     = "/home/parallels/.openclaw/logs/openclaw-*.log",
+    service      = "openclaw",
+  }]
+}
+
+loki.source.file "openclaw_logs" {
+  targets    = local.file_match.openclaw_logs.targets
+  forward_to = [loki.process.openclaw_logs.receiver]
+}
+
+loki.process "openclaw_logs" {
+  stage.json {
+    expressions = {
+      level     = "level",
+      subsystem = "subsystem",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level     = "",
+      subsystem = "",
+    }
+  }
+
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+// OpenClaw telemetry JSONL
+local.file_match "openclaw_telemetry" {
+  path_targets = [{
+    __path__     = "/home/parallels/.openclaw/logs/telemetry.jsonl",
+    service      = "openclaw_telemetry",
+  }]
+}
+
+loki.source.file "openclaw_telemetry" {
+  targets    = local.file_match.openclaw_telemetry.targets
+  forward_to = [loki.process.openclaw_telemetry.receiver]
+}
+
+loki.process "openclaw_telemetry" {
+  stage.json {
+    expressions = {
+      event_type = "type",
+      success    = "success",
+    }
+  }
+
+  stage.labels {
+    values = {
+      event_type = "",
+    }
+  }
+
+  forward_to = [loki.write.grafana_cloud.receiver]
+}

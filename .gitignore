@@ -1,0 +1,33 @@
+# Secrets -- never commit
+.env
+*.tfvars
+
+# Terraform state
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+
+# Data volumes (bind mounts)
+data/
+
+# Backups
+backups/
+
+# Shared ephemeral/credentials
+shared/credentials/*
+!shared/credentials/.gitkeep
+shared/exchange/*
+!shared/exchange/.gitkeep
+
+# Private keys / certificates
+*.pem
+*.key
+*.crt
+*.p12
+
+# OS / IDE
+.DS_Store
+*.swp
+.vscode/
+.idea/
+node_modules/

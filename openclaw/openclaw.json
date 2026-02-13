@@ -1,0 +1,36 @@
+{
+  "ai": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "apiKey": "{{OPENCLAW_API_KEY}}"
+  },
+  "gateway": {
+    "port": 18789
+  },
+  "logging": {
+    "level": "info",
+    "consoleLevel": "warn"
+  },
+  "plugins": {
+    "entries": {
+      "telemetry": {
+        "enabled": true,
+        "config": {
+          "enabled": true,
+          "redact": { "enabled": true },
+          "integrity": { "enabled": true },
+          "rateLimit": { "enabled": true, "maxEventsPerSecond": 100 },
+          "rotate": { "enabled": true, "maxSizeBytes": 52428800, "maxFiles": 10 }
+        }
+      }
+    }
+  },
+  "mcp": {
+    "servers": {
+      "n8n": {
+        "type": "sse",
+        "url": "http://localhost:5678/mcp/sse"
+      }
+    }
+  }
+}

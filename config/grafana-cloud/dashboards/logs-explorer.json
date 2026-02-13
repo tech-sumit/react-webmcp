@@ -1,0 +1,116 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "logs-explorer",
+    "title": "Logs Explorer",
+    "description": "Filterable log exploration by service, level, and time range",
+    "tags": ["logs", "loki", "auto-provisioned"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "10s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "service",
+          "type": "query",
+          "datasource": { "type": "loki" },
+          "query": "label_values(service)",
+          "current": { "text": "All", "value": "$__all" },
+          "includeAll": true,
+          "multi": true,
+          "refresh": 2
+        },
+        {
+          "name": "level",
+          "type": "custom",
+          "current": { "text": "All", "value": "$__all" },
+          "options": [
+            { "text": "All", "value": "$__all" },
+            { "text": "error", "value": "error" },
+            { "text": "warn", "value": "warn" },
+            { "text": "info", "value": "info" },
+            { "text": "debug", "value": "debug" }
+          ],
+          "includeAll": true,
+          "multi": false
+        },
+        {
+          "name": "search",
+          "type": "textbox",
+          "current": { "text": "", "value": "" }
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Log Volume by Service",
+        "type": "timeseries",
+        "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum by (service) (count_over_time({service=~\"$service\"} [$__interval]))",
+            "legendFormat": "{{service}}",
+            "refId": "A",
+            "datasource": { "type": "loki" }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": { "drawStyle": "bars", "fillOpacity": 50 }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Error Log Volume",
+        "type": "timeseries",
+        "gridPos": { "h": 6, "w": 24, "x": 0, "y": 6 },
+        "targets": [
+          {
+            "expr": "sum by (service) (count_over_time({service=~\"$service\"} | json | level=\"error\" [$__interval]))",
+            "legendFormat": "{{service}} errors",
+            "refId": "A",
+            "datasource": { "type": "loki" }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": { "drawStyle": "bars", "fillOpacity": 50 },
+            "color": { "fixedColor": "red", "mode": "fixed" }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Log Stream",
+        "type": "logs",
+        "gridPos": { "h": 16, "w": 24, "x": 0, "y": 12 },
+        "targets": [
+          {
+            "expr": "{service=~\"$service\"} ${level:pipe} ${search:pipe}",
+            "refId": "A",
+            "datasource": { "type": "loki" }
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "showCommonLabels": false,
+          "wrapLogMessage": true,
+          "prettifyLogMessage": true,
+          "enableLogDetails": true,
+          "sortOrder": "Descending",
+          "dedupStrategy": "none"
+        }
+      }
+    ]
+  },
+  "overwrite": true,
+  "folderId": 0
+}

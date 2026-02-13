@@ -1,0 +1,142 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "openclaw-agent",
+    "title": "OpenClaw Agent Activity",
+    "description": "Tool calls, LLM usage/cost, session lifecycle, message throughput, failed tools",
+    "tags": ["openclaw", "ai-agent", "auto-provisioned"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Tool Call Frequency",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "{service=\"openclaw_telemetry\", event_type=\"tool.end\"} | json | line_format \"{{.toolName}}\"",
+            "legendFormat": "",
+            "refId": "A",
+            "datasource": { "type": "loki" }
+          }
+        ],
+        "description": "Rate of tool invocations from OpenClaw telemetry"
+      },
+      {
+        "id": 2,
+        "title": "Tool Call Duration (avg)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "{service=\"openclaw_telemetry\", event_type=\"tool.end\"} | json | unwrap durationMs | avg_over_time([5m]) by (toolName)",
+            "legendFormat": "{{toolName}}",
+            "refId": "A",
+            "datasource": { "type": "loki" }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "ms" }
+        }
+      },
+      {
+        "id": 3,
+        "title": "LLM Token Usage",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "{service=\"openclaw_telemetry\", event_type=\"llm.usage\"} | json | unwrap totalTokens | sum_over_time([1h])",
+            "legendFormat": "Total Tokens / hr",
+            "refId": "A",
+            "datasource": { "type": "loki" }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "short" }
+        }
+      },
+      {
+        "id": 4,
+        "title": "LLM Cost Over Time",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "{service=\"openclaw_telemetry\", event_type=\"llm.usage\"} | json | unwrap costUsd | sum_over_time([1h])",
+            "legendFormat": "Cost USD / hr",
+            "refId": "A",
+            "datasource": { "type": "loki" }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "currencyUSD" }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Agent Sessions",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "expr": "count_over_time({service=\"openclaw_telemetry\", event_type=\"agent.start\"}[24h])",
+            "legendFormat": "Sessions Today",
+            "refId": "A",
+            "datasource": { "type": "loki" }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "short" }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Failed Tool Calls",
+        "type": "table",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+        "targets": [
+          {
+            "expr": "{service=\"openclaw_telemetry\", event_type=\"tool.end\"} | json | success=\"false\" | line_format \"{{.toolName}}: {{.error}}\"",
+            "legendFormat": "",
+            "refId": "A",
+            "datasource": { "type": "loki" }
+          }
+        ],
+        "description": "Recent tool call failures with error messages"
+      },
+      {
+        "id": 7,
+        "title": "Message Throughput (In/Out)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+        "targets": [
+          {
+            "expr": "count_over_time({service=\"openclaw_telemetry\", event_type=\"message.in\"}[5m])",
+            "legendFormat": "Inbound",
+            "refId": "A",
+            "datasource": { "type": "loki" }
+          },
+          {
+            "expr": "count_over_time({service=\"openclaw_telemetry\", event_type=\"message.out\"}[5m])",
+            "legendFormat": "Outbound",
+            "refId": "B",
+            "datasource": { "type": "loki" }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "short" }
+        }
+      }
+    ]
+  },
+  "overwrite": true,
+  "folderId": 0
+}

@@ -1,0 +1,18 @@
+# Parallels DevOps Service Configuration
+# This file provides additional configuration for the prldevops container.
+# Most settings are controlled via environment variables in docker-compose.yml.
+
+logging:
+  level: INFO
+  format: json
+
+api:
+  port: 80
+  cors:
+    enabled: true
+    allowed_origins:
+      - "http://localhost:*"
+
+security:
+  tls:
+    enabled: false  # TLS handled by Cloudflare Tunnel

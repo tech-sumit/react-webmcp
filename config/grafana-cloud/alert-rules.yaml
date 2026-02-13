@@ -1,0 +1,563 @@
+###############################################################################
+# Grafana Cloud Alert Rules
+# Provisioned via API from this versioned YAML file.
+# Total: 17 rules across n8n, infrastructure, OpenClaw, and Parallels.
+###############################################################################
+
+apiVersion: 1
+
+groups:
+  # ===========================================================================
+  # n8n + Infrastructure Alerts
+  # ===========================================================================
+  - orgId: 1
+    name: n8n-alerts
+    folder: n8n
+    interval: 1m
+    rules:
+      - uid: n8n-workflow-failure-rate
+        title: N8nWorkflowFailureRate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: sum(rate(n8n_workflow_execution_total{status="error"}[5m])) / sum(rate(n8n_workflow_execution_total[5m])) * 100
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [20]
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "n8n workflow error rate > 20% for 5 minutes"
+          description: "Workflow failure rate is {{ $value }}%"
+
+      - uid: n8n-queue-backlog
+        title: N8nQueueBacklog
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: n8n_scaling_mode_queue_jobs_waiting
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [50]
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "n8n queue backlog > 50 jobs for 5 minutes"
+          description: "Queue has {{ $value }} waiting jobs"
+
+      - uid: n8n-down
+        title: N8nDown
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: up{job="n8n"}
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "n8n is unreachable"
+          description: "n8n /metrics endpoint has been unreachable for 1 minute"
+
+      - uid: vault-sealed
+        title: VaultSealed
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: vault_core_unsealed == 0
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Vault is sealed"
+          description: "HashiCorp Vault has been sealed for 1 minute"
+
+      - uid: high-memory-usage
+        title: HighMemoryUsage
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [85]
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "VM memory usage > 85% for 5 minutes"
+          description: "VM memory usage is {{ $value }}%"
+
+      - uid: high-disk-usage
+        title: HighDiskUsage
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [80]
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "VM disk usage > 80%"
+          description: "VM disk usage is {{ $value }}%"
+
+      - uid: container-restarting
+        title: ContainerRestarting
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: sum by (name) (increase(container_restart_count[15m]))
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [3]
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container restarting frequently"
+          description: "Container {{ $labels.name }} has restarted {{ $value }} times in 15 minutes"
+
+      - uid: postgres-down
+        title: PostgresDown
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: up{job="postgres"} or vector(0)
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is unreachable"
+          description: "PostgreSQL has been unreachable for 1 minute"
+
+  # ===========================================================================
+  # OpenClaw (AI Agent) Alerts
+  # ===========================================================================
+  - orgId: 1
+    name: openclaw-alerts
+    folder: openclaw
+    interval: 1m
+    rules:
+      - uid: openclaw-gateway-down
+        title: OpenClawGatewayDown
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: up{job="openclaw"} or vector(0)
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OpenClaw gateway is unreachable"
+          description: "OpenClaw gateway has been unreachable for 2 minutes"
+
+      - uid: openclaw-high-llm-cost
+        title: OpenClawHighLLMCost
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: grafanacloud-loki
+            model:
+              expr: |
+                sum(sum_over_time({service="openclaw_telemetry", event_type="llm.usage"} | json | unwrap costUsd [1h]))
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [10]
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "OpenClaw LLM cost > $10 in rolling 1 hour"
+          description: "LLM cost in last hour: ${{ $value }}"
+
+      - uid: openclaw-tool-failure-spike
+        title: OpenClawToolFailureSpike
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: grafanacloud-loki
+            model:
+              expr: |
+                sum(count_over_time({service="openclaw_telemetry", event_type="tool.end"} | json | success="false" [5m]))
+                / sum(count_over_time({service="openclaw_telemetry", event_type="tool.end"} [5m])) * 100
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [30]
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "OpenClaw tool failure rate > 30% for 5 minutes"
+          description: "Tool failure rate: {{ $value }}%"
+
+      - uid: openclaw-high-token-burn
+        title: OpenClawHighTokenBurn
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: grafanacloud-loki
+            model:
+              expr: |
+                sum(sum_over_time({service="openclaw_telemetry", event_type="llm.usage"} | json | unwrap totalTokens [1h]))
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [500000]
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "OpenClaw token usage > 500k in 1 hour"
+          description: "Token usage in last hour: {{ $value }}"
+
+  # ===========================================================================
+  # Parallels Desktop (macOS Host) Alerts
+  # ===========================================================================
+  - orgId: 1
+    name: parallels-alerts
+    folder: parallels
+    interval: 1m
+    rules:
+      - uid: vm-stopped
+        title: VMStopped
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: parallels_vm_state or vector(0)
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Parallels VM is not running"
+          description: "VM state has been != running for 1 minute"
+
+      - uid: vm-high-cpu
+        title: VMHighCPU
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: parallels_vm_cpu_load
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [90]
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "VM CPU load > 90% for 5 minutes"
+          description: "VM CPU load: {{ $value }}%"
+
+      - uid: vm-high-memory
+        title: VMHighMemory
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: parallels_vm_memory_load
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [90]
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "VM memory load > 90% for 5 minutes"
+          description: "VM memory load: {{ $value }}%"
+
+      - uid: host-high-cpu
+        title: HostHighCPU
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: parallels_host_cpu_percent
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [85]
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "macOS host CPU > 85% for 5 minutes"
+          description: "Host CPU: {{ $value }}%"
+
+      - uid: host-low-memory
+        title: HostLowMemory
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: parallels_host_memory_percent
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [85]
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "macOS host memory > 85% for 5 minutes"
+          description: "Host memory: {{ $value }}%"

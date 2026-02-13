@@ -1,0 +1,267 @@
+###############################################################################
+# AI-Native n8n Automation System -- VM Docker Compose Stack (9 services)
+#
+# Runs inside the Parallels Ubuntu 24.04 VM.
+# All config flows from .env via ${VAR:-default} syntax.
+###############################################################################
+
+services:
+  # ===========================================================================
+  # n8n Workflow Engine
+  # ===========================================================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      # Database
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=${POSTGRES_PORT:-5432}
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-n8n}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      # Core
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_HOST=${N8N_HOST:-0.0.0.0}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-https}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL}
+      - N8N_PUBLIC_API_DISABLED=false
+      - N8N_API_KEY=${N8N_API_KEY}
+      # Auth: n8n v1.0+ uses built-in user management (basic auth env vars removed)
+      # Queue mode (Redis)
+      - EXECUTIONS_MODE=${N8N_EXECUTIONS_MODE:-queue}
+      - QUEUE_BULL_REDIS_HOST=redis
+      - QUEUE_BULL_REDIS_PORT=${REDIS_PORT:-6379}
+      - QUEUE_BULL_REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      # Vault (internal port is always 8200 regardless of host mapping)
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN}
+      # Logging
+      - N8N_LOG_LEVEL=${N8N_LOG_LEVEL:-info}
+      - N8N_LOG_FORMAT=${N8N_LOG_FORMAT:-json}
+      - N8N_LOG_OUTPUT=console
+      # Metrics (Prometheus)
+      - N8N_METRICS=${N8N_METRICS:-true}
+      - N8N_METRICS_INCLUDE_DEFAULT_METRICS=true
+      - N8N_METRICS_INCLUDE_QUEUE_METRICS=true
+      - N8N_METRICS_INCLUDE_WORKFLOW_ID_LABEL=true
+      - N8N_METRICS_INCLUDE_NODE_TYPE_LABEL=true
+      - N8N_METRICS_INCLUDE_CREDENTIAL_TYPE_LABEL=true
+      - N8N_METRICS_INCLUDE_API_ENDPOINTS=true
+      # Timezone
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    networks:
+      - n8n-net
+
+  # ===========================================================================
+  # PostgreSQL
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: n8n-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-n8n}
+      - POSTGRES_USER=${POSTGRES_USER:-n8n}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-n8n} -d ${POSTGRES_DB:-n8n}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - n8n-net
+
+  # ===========================================================================
+  # HashiCorp Vault
+  # ===========================================================================
+  vault:
+    image: hashicorp/vault:latest
+    container_name: n8n-vault
+    restart: unless-stopped
+    ports:
+      - "${VAULT_PORT:-8200}:8200"
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_ROOT_TOKEN}
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+      - VAULT_LOG_LEVEL=${VAULT_LOG_LEVEL:-info}
+      - VAULT_ADDR=http://127.0.0.1:8200
+      - TZ=${TZ:-UTC}
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./data/vault:/vault/file
+      - ./config/vault/vault-config.hcl:/vault/config/vault-config.hcl:ro
+    # NOTE: -dev mode uses in-memory storage (secrets lost on restart).
+    # vault-init re-seeds on every start. For persistence, remove -dev and handle unsealing.
+    command: server -dev -config=/vault/config/vault-config.hcl
+    healthcheck:
+      # vault status exits 0=unsealed, 1=error, 2=sealed -- no jq needed
+      test: ["CMD-SHELL", "vault status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - n8n-net
+
+  # ===========================================================================
+  # Vault Init (one-shot: unseal + seed secrets + create policy)
+  # ===========================================================================
+  vault-init:
+    image: hashicorp/vault:latest
+    container_name: n8n-vault-init
+    restart: "no"
+    environment:
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_ROOT_TOKEN}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./config/vault/init.sh:/vault/init.sh:ro
+      - ./config/vault/policies/n8n-policy.hcl:/vault/policies/n8n-policy.hcl:ro
+      - ./data/vault:/vault/file
+    entrypoint: /bin/sh
+    command: ["/vault/init.sh"]
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - n8n-net
+
+  # ===========================================================================
+  # Cloudflare Tunnel
+  # ===========================================================================
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: n8n-cloudflared
+    restart: unless-stopped
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+      - TZ=${TZ:-UTC}
+    command: tunnel run
+    depends_on:
+      n8n:
+        condition: service_healthy
+    networks:
+      - n8n-net
+
+  # ===========================================================================
+  # Redis (Queue Mode)
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: n8n-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory ${REDIS_MAXMEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    volumes:
+      - ./data/redis:/data
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ${REDIS_PASSWORD:+-a $REDIS_PASSWORD} --no-auth-warning ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - n8n-net
+
+  # ===========================================================================
+  # Grafana Alloy (Metrics + Logs Relay to Grafana Cloud)
+  # ===========================================================================
+  alloy:
+    image: grafana/alloy:latest
+    container_name: n8n-alloy
+    restart: unless-stopped
+    environment:
+      - GRAFANA_CLOUD_PROMETHEUS_URL=${GRAFANA_CLOUD_PROMETHEUS_URL}
+      - GRAFANA_CLOUD_LOKI_URL=${GRAFANA_CLOUD_LOKI_URL}
+      - GRAFANA_CLOUD_USER=${GRAFANA_CLOUD_USER}
+      - GRAFANA_CLOUD_API_KEY=${GRAFANA_CLOUD_API_KEY}
+      - HOST_IP=${HOST_IP:-10.211.55.2}
+      - ALLOY_SCRAPE_INTERVAL=${ALLOY_SCRAPE_INTERVAL:-15s}
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./config/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+      - /home/parallels/.openclaw/logs:/home/parallels/.openclaw/logs:ro
+    command:
+      - run
+      - /etc/alloy/config.alloy
+    # No depends_on -- Alloy should start early to collect logs during stack boot
+    networks:
+      - n8n-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # cAdvisor (Container Metrics)
+  # ===========================================================================
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: n8n-cadvisor
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - n8n-net
+
+  # ===========================================================================
+  # Node Exporter (VM System Metrics)
+  # ===========================================================================
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: n8n-node-exporter
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - n8n-net
+
+networks:
+  n8n-net:
+    driver: bridge
+    name: ${PROJECT_NAME:-n8n-ai}-network

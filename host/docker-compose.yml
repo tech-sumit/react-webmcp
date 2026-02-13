@@ -1,0 +1,31 @@
+###############################################################################
+# macOS Host Docker Compose -- Parallels DevOps API Service
+#
+# Runs on the Mac host (NOT inside the VM).
+# Exposes the REST API that the Terraform provider talks to.
+#
+# NOTE: Run from the project root with:
+#   docker compose -f host/docker-compose.yml --env-file .env up -d
+# Or the Makefile handles this automatically.
+###############################################################################
+
+services:
+  prldevops:
+    image: parallels/prl-devops-service:latest
+    container_name: prldevops
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - /var/run:/var/run    # Access to Parallels socket
+    env_file:
+      - ../.env
+    environment:
+      - ROOT_PASSWORD=${PRLDEVOPS_ROOT_PASSWORD}
+      - LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:80/api/health/probe || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
