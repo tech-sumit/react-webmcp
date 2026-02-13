@@ -190,8 +190,7 @@ vm-sync: ## Rsync repo files into VM via SSH
 		--exclude 'host/' \
 		--exclude 'data/' \
 		--exclude 'backups/' \
-		--exclude '.cursor/plans/' \
-		--exclude '.cursor/prompts/' \
+		--exclude '.cursor/' \
 		--exclude 'node_modules/' \
 		--exclude '.DS_Store' \
 		./ $(VM_USER)@localhost:$(PROJECT_DIR)/

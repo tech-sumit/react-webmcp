@@ -9,7 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${SCRIPT_DIR}/.."
-CURSOR_DIR="${PROJECT_DIR}/.cursor"
+OPENCLAW_DIR="${PROJECT_DIR}/openclaw"
 OPENCLAW_HOME="${HOME}/.openclaw"
 
 # Load .env for secrets
@@ -110,15 +110,12 @@ jq -n \
 
 echo "  Written: ${OPENCLAW_HOME}/openclaw.json"
 
-# 5. Copy workspace files (rules + skills) to OpenClaw home
+# 5. Copy workspace files to OpenClaw home
 echo "Copying workspace files..."
-if [ -d "${CURSOR_DIR}/rules" ]; then
-  cp "${CURSOR_DIR}/rules/"*.md "${OPENCLAW_HOME}/workspace/" 2>/dev/null || true
+if [ -d "${OPENCLAW_DIR}/workspace" ]; then
+  cp -r "${OPENCLAW_DIR}/workspace/"* "${OPENCLAW_HOME}/workspace/" 2>/dev/null || true
+  echo "  Copied workspace files to ${OPENCLAW_HOME}/workspace/"
 fi
-if [ -d "${CURSOR_DIR}/skills" ]; then
-  cp -r "${CURSOR_DIR}/skills/"* "${OPENCLAW_HOME}/workspace/skills/" 2>/dev/null || true
-fi
-echo "  Copied rules + skills to ${OPENCLAW_HOME}/workspace/"
 
 # 6. Install daemon
 echo "Installing OpenClaw daemon..."
