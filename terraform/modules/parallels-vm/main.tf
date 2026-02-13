@@ -118,7 +118,7 @@ resource "parallels-desktop_remote_vm" "n8n_worker" {
       wait_between_attempts = "5s"
     }
     inline = [
-      "cd /home/parallels/n8n && make destroy || true",
+      "cd /home/parallels/n8n && docker compose down --timeout 30 || true",
     ]
   }
 
