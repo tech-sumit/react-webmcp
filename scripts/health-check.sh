@@ -47,7 +47,7 @@ echo ""
 
 # --- Docker Containers ---
 echo "Docker Containers:"
-for container in n8n n8n-postgres n8n-vault n8n-redis n8n-cloudflared n8n-alloy n8n-cadvisor n8n-node-exporter; do
+for container in $(docker compose ps --format '{{.Name}}' 2>/dev/null); do
   status=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || \
            docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || \
            echo "not found")
@@ -109,16 +109,6 @@ else
   check "PostgreSQL" "FAIL"
 fi
 echo ""
-
-# --- n8n API ---
-echo "System Info:"
-api_code=$(curl -s -o /dev/null -w "%{http_code}" "${N8N_URL}/api/v1/workflows" \
-  -H "X-N8N-API-KEY: ${N8N_API_KEY:-}" 2>/dev/null || echo "000")
-if [ "$api_code" = "200" ]; then
-  check "n8n API" "OK (responsive)"
-else
-  check "n8n API" "FAIL: HTTP ${api_code}"
-fi
 
 # --- Disk Usage ---
 disk_usage=$(df -h / 2>/dev/null | tail -1 | awk '{print $5}' | tr -d '%')

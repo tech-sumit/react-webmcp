@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.1.1 -- Simplification Pass (2026-02-13)
+
+Remove dead code, strip unused features, make startup resilient.
+
+### Dead code removed
+- Vault init.sh: removed AppRole auth section (circular in dev mode -- root token used everywhere)
+- health-check.sh: removed duplicate `/api/v1/workflows` check (redundant with `/healthz`)
+- openclaw-setup.sh: removed npm install block (already in Terraform provisioner)
+
+### Cloudflare: tunnel only
+- Removed WAF rate limiting ruleset and page rule from cloudflare module
+- Cloudflare is used strictly for tunnel + DNS, nothing else
+
+### Backup simplified
+- backup.sh: stripped to PostgreSQL dump only (git tracks workflows, Vault is dev-mode in-memory)
+- Removed workflow export, Vault snapshot, and metadata from backup/restore
+
+### Makefile resilience
+- Split REQUIRED_VARS into CORE_VARS (6) and OPTIONAL_VARS (9)
+- check-env validates only core vars, warns on missing optional vars
+- Removed dashboards-push/alerts-push from `up` chain; now runs conditionally inside setup-noninteractive
+- Removed workflow-archive target (duplicate of workflow-disable)
+
+### Minor trims
+- Alloy config: removed queue_config tuning (defaults fine for ~100 samples/min)
+- provisioner.sh: removed yq individual-rule fallback (30 lines); fails cleanly on error
+- health-check.sh: container list now derived dynamically via `docker compose ps`
+
 ## v0.1.0 -- Initial Implementation (2026-02-13)
 
 Full implementation of the AI-native n8n automation system per plan specification.
@@ -17,8 +45,8 @@ Full implementation of the AI-native n8n automation system per plan specificatio
 
 ### Secrets Management
 - HashiCorp Vault (dev mode) with KV v2 engine
-- AppRole auth for n8n, root token for admin
-- init.sh: auto-setup KV engine, policy, AppRole, credential extraction
+- Root token auth for all services
+- init.sh: auto-setup KV engine, policy, seed secrets
 
 ### Observability
 - Grafana Alloy relaying metrics + logs to Grafana Cloud

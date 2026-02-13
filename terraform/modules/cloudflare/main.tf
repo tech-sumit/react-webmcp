@@ -1,5 +1,5 @@
 ###############################################################################
-# Cloudflare Module -- Tunnel, DNS, WAF rules
+# Cloudflare Module -- Tunnel + DNS
 ###############################################################################
 
 # Look up the zone
@@ -46,39 +46,6 @@ resource "cloudflare_tunnel_config" "n8n" {
     ingress_rule {
       service = "http_status:404"
     }
-  }
-}
-
-# WAF rate limiting on webhook endpoints (optional)
-resource "cloudflare_ruleset" "webhook_rate_limit" {
-  zone_id     = data.cloudflare_zone.domain.id
-  name        = "n8n webhook rate limiting"
-  description = "Rate limit webhook endpoints"
-  kind        = "zone"
-  phase       = "http_ratelimit"
-
-  rules {
-    action = "block"
-    ratelimit {
-      characteristics     = ["ip.src"]
-      period              = 60
-      requests_per_period = 100
-      mitigation_timeout  = 600
-    }
-    expression  = "(http.host eq \"${var.n8n_subdomain}.${var.cloudflare_domain}\" and starts_with(http.request.uri.path, \"/webhook\"))"
-    description = "Rate limit webhook requests to 100/min per IP"
-    enabled     = true
-  }
-}
-
-# Page rule: bypass cache for API
-resource "cloudflare_page_rule" "api_no_cache" {
-  zone_id  = data.cloudflare_zone.domain.id
-  target   = "${var.n8n_subdomain}.${var.cloudflare_domain}/api/*"
-  priority = 1
-
-  actions {
-    cache_level = "bypass"
   }
 }
 

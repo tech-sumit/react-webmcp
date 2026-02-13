@@ -22,26 +22,28 @@ N8N_PORT    ?= 5678
 VAULT_PORT  ?= 8200
 TZ          ?= UTC
 
-# Required variables -- fail fast with clear error messages
-REQUIRED_VARS := POSTGRES_PASSWORD N8N_ENCRYPTION_KEY N8N_WEBHOOK_URL N8N_API_KEY \
-                 CLOUDFLARE_DOMAIN CLOUDFLARE_API_TOKEN \
-                 CLOUDFLARE_ACCOUNT_ID VAULT_ROOT_TOKEN \
+# Core variables -- required for the stack to start
+CORE_VARS := POSTGRES_PASSWORD N8N_ENCRYPTION_KEY N8N_WEBHOOK_URL N8N_API_KEY \
+             VAULT_ROOT_TOKEN PRLDEVOPS_ROOT_PASSWORD
+
+# Optional variables -- warn if missing, don't fail
+OPTIONAL_VARS := CLOUDFLARE_DOMAIN CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID \
                  GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_LOKI_URL \
                  GRAFANA_CLOUD_USER GRAFANA_CLOUD_API_KEY GRAFANA_CLOUD_STACK_URL \
-                 PRLDEVOPS_ROOT_PASSWORD OPENCLAW_API_KEY
+                 OPENCLAW_API_KEY
 
 ###############################################################################
 # Configuration
 ###############################################################################
 
 .PHONY: check-env
-check-env: ## Validate all required variables are set in .env
+check-env: ## Validate core variables are set in .env (warn on optional)
 	@if [ ! -f .env ]; then \
 		echo "ERROR: .env file not found. Run: cp .env.example .env && make generate-secrets"; \
 		exit 1; \
 	fi
 	@missing=""; \
-	for var in $(REQUIRED_VARS); do \
+	for var in $(CORE_VARS); do \
 		val=$$(grep -E "^$$var=" .env 2>/dev/null | cut -d= -f2-); \
 		if [ -z "$$val" ]; then missing="$$missing $$var"; fi; \
 	done; \
@@ -50,7 +52,15 @@ check-env: ## Validate all required variables are set in .env
 		echo "Copy .env.example to .env and fill in required values."; \
 		exit 1; \
 	fi
-	@echo "All required variables are set."
+	@echo "Core variables OK."
+	@warn=""; \
+	for var in $(OPTIONAL_VARS); do \
+		val=$$(grep -E "^$$var=" .env 2>/dev/null | cut -d= -f2-); \
+		if [ -z "$$val" ]; then warn="$$warn $$var"; fi; \
+	done; \
+	if [ -n "$$warn" ]; then \
+		echo "WARN: Optional variables not set (some features disabled):$$warn"; \
+	fi
 
 .PHONY: generate-secrets
 generate-secrets: ## Generate random values for internal secrets
@@ -81,7 +91,7 @@ generate-secrets: ## Generate random values for internal secrets
 ###############################################################################
 
 .PHONY: up
-up: check-env tf-init tf-apply vm-sync vm-env setup-noninteractive dashboards-push alerts-push health ## Full bootstrap: create VM + provision + start stack
+up: check-env tf-init tf-apply vm-sync vm-env setup-noninteractive health ## Full bootstrap: create VM + provision + start stack
 	@echo ""
 	@echo "=== System is UP ==="
 	@echo "n8n:   http://localhost:$(N8N_PORT)"
@@ -205,12 +215,6 @@ workflow-update: ## Push local JSON changes: make workflow-update NAME="my-workf
 workflow-delete: ## Delete workflow: make workflow-delete NAME="my-workflow"
 	@[ -n "$(NAME)" ] || (echo "ERROR: NAME required" && exit 1)
 	$(VM_SSH) "cd $(PROJECT_DIR) && bash scripts/n8n-ctl.sh delete '$(NAME)'"
-
-.PHONY: workflow-archive
-workflow-archive: ## Deactivate + tag as archived: make workflow-archive NAME="my-workflow"
-	@[ -n "$(NAME)" ] || (echo "ERROR: NAME required" && exit 1)
-	$(VM_SSH) "cd $(PROJECT_DIR) && bash scripts/n8n-ctl.sh disable '$(NAME)'"
-	@echo "Workflow '$(NAME)' archived (deactivated)."
 
 .PHONY: workflow-disable
 workflow-disable: ## Deactivate workflow: make workflow-disable NAME="my-workflow"
@@ -352,7 +356,7 @@ tf-destroy: ## Tear down managed infrastructure
 ###############################################################################
 
 .PHONY: backup
-backup: ## Full backup (DB dump + workflow export + Vault snapshot)
+backup: ## PostgreSQL database backup
 	$(VM_SSH) "cd $(PROJECT_DIR) && bash scripts/backup.sh backup"
 
 .PHONY: restore
@@ -427,6 +431,13 @@ setup-noninteractive: ## Internal: docker compose up + vault seed + openclaw set
 	@$(MAKE) vault-seed
 	@echo "Running OpenClaw setup..."
 	$(VM_SSH) "cd $(PROJECT_DIR) && bash scripts/openclaw-setup.sh" || true
+	@# Push dashboards/alerts only if Grafana Cloud is configured
+	@if [ -n "$(GRAFANA_CLOUD_STACK_URL)" ]; then \
+		echo "Pushing Grafana dashboards and alerts..."; \
+		bash config/grafana-cloud/provisioner.sh all || echo "WARN: Grafana provisioning failed (non-blocking)"; \
+	else \
+		echo "Skipping Grafana provisioning (GRAFANA_CLOUD_STACK_URL not set)"; \
+	fi
 	@echo "Running health check..."
 	$(VM_SSH) "cd $(PROJECT_DIR) && bash scripts/health-check.sh" || true
 

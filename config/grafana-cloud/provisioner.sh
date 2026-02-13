@@ -95,44 +95,9 @@ push_alerts() {
   if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 202 ]; then
     echo "  OK: Alert rules provisioned"
   else
-    echo "  WARN: HTTP ${http_code}: ${body}"
-    echo "  Attempting individual rule provisioning..."
-
-    # Fallback: parse YAML and push rules individually (requires yq)
-    if command -v yq &>/dev/null; then
-      local rule_count
-      rule_count=$(yq '.groups[].rules | length' "$ALERT_RULES_FILE" | paste -sd+ | bc)
-      echo "  Found ${rule_count} rules, pushing individually..."
-
-      yq -o json -c '.groups[]' "$ALERT_RULES_FILE" | while read -r group; do
-        local folder
-        folder=$(echo "$group" | jq -r '.folder')
-
-        # Ensure folder exists
-        jq -n --arg t "$folder" '{title: $t}' | \
-          curl -s -X POST "${GRAFANA_API}/folders" \
-            -H "${AUTH_HEADER}" \
-            -H "Content-Type: application/json" \
-            -d @- > /dev/null 2>&1 || true
-
-        echo "$group" | jq -c '.rules[]' | while read -r rule; do
-          local title
-          title=$(echo "$rule" | jq -r '.title')
-          echo "    Pushing rule: ${title}"
-
-          curl -s -X POST "${GRAFANA_API}/v1/provisioning/alert-rules" \
-            -H "${AUTH_HEADER}" \
-            -H "Content-Type: application/json" \
-            -H "X-Disable-Provenance: true" \
-            -d "$rule" > /dev/null 2>&1 || echo "      WARN: Failed to push ${title}"
-        done
-      done
-    else
-      echo "  Install yq for individual rule provisioning fallback"
-    fi
+    echo "  ERROR: HTTP ${http_code}: ${body}"
+    return 1
   fi
-
-  echo "  Done: Alert rules provisioned"
 }
 
 # =============================================================================

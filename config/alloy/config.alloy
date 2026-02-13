@@ -15,11 +15,6 @@ prometheus.remote_write "grafana_cloud" {
       username = env("GRAFANA_CLOUD_USER")
       password = env("GRAFANA_CLOUD_API_KEY")
     }
-
-    queue_config {
-      max_samples_per_send = 1000
-      batch_send_deadline  = "5s"
-    }
   }
 }
 

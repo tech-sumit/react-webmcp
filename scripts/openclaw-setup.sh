@@ -25,12 +25,8 @@ VAULT_TOKEN="${VAULT_TOKEN:-${VAULT_ROOT_TOKEN:-}}"
 
 echo "=== OpenClaw Setup ==="
 
-# 1. Ensure OpenClaw is installed
-if ! command -v openclaw &>/dev/null; then
-  echo "Installing OpenClaw..."
-  sudo npm install -g openclaw@latest
-fi
-echo "OpenClaw version: $(openclaw --version 2>/dev/null || echo 'unknown')"
+# 1. Check OpenClaw (installed by Terraform provisioner)
+echo "OpenClaw version: $(openclaw --version 2>/dev/null || echo 'not installed -- run terraform apply')"
 
 # 2. Pull secrets from Vault
 echo "Pulling secrets from Vault..."
