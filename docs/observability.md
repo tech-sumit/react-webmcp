@@ -174,7 +174,7 @@ The OpenClaw agent can query all observability data via the `observe` skill:
 "Which tool calls are failing?"
 ```
 
-See `openclaw/workspace/skills/observe/SKILL.md` for the complete query reference.
+See `.cursor/skills/observe/SKILL.md` for the complete query reference.
 
 ## Configuration
 

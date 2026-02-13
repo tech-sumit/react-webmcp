@@ -9,7 +9,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${SCRIPT_DIR}/.."
-OPENCLAW_DIR="${PROJECT_DIR}/openclaw"
+CURSOR_DIR="${PROJECT_DIR}/.cursor"
 OPENCLAW_HOME="${HOME}/.openclaw"
 
 # Load .env for secrets
@@ -61,69 +61,64 @@ mkdir -p "${OPENCLAW_HOME}/logs"
 
 # 4. Template openclaw.json with secrets
 echo "Templating openclaw.json..."
-local_config="${OPENCLAW_DIR}/openclaw.json"
+PROVIDER="${OPENCLAW_MODEL_PROVIDER:-anthropic}"
+MODEL="${OPENCLAW_MODEL:-claude-sonnet-4-20250514}"
+LOG_LEVEL="${OPENCLAW_LOG_LEVEL:-info}"
+TELEMETRY="${OPENCLAW_TELEMETRY_ENABLED:-true}"
+PORT="${OPENCLAW_PORT:-18789}"
 
-if [ -f "$local_config" ]; then
-  # Replace placeholders with actual values using jq for safe JSON construction
-  PROVIDER="${OPENCLAW_MODEL_PROVIDER:-anthropic}"
-  MODEL="${OPENCLAW_MODEL:-claude-sonnet-4-20250514}"
-  LOG_LEVEL="${OPENCLAW_LOG_LEVEL:-info}"
-  TELEMETRY="${OPENCLAW_TELEMETRY_ENABLED:-true}"
-  PORT="${OPENCLAW_PORT:-18789}"
+# Coerce telemetry to boolean
+case "$TELEMETRY" in
+  true|1|yes) TELEMETRY_BOOL=true ;;
+  *)          TELEMETRY_BOOL=false ;;
+esac
 
-  # Coerce telemetry to boolean
-  case "$TELEMETRY" in
-    true|1|yes) TELEMETRY_BOOL=true ;;
-    *)          TELEMETRY_BOOL=false ;;
-  esac
+N8N_MCP_URL="${N8N_MCP_URL:-http://localhost:5678/mcp/sse}"
 
-  N8N_MCP_URL="${N8N_MCP_URL:-http://localhost:5678/mcp/sse}"
-
-  jq -n \
-    --arg provider "$PROVIDER" \
-    --arg model "$MODEL" \
-    --arg apiKey "$OPENCLAW_API_KEY" \
-    --argjson port "$PORT" \
-    --arg logLevel "$LOG_LEVEL" \
-    --argjson telemetry "$TELEMETRY_BOOL" \
-    --arg mcpUrl "$N8N_MCP_URL" \
-    '{
-      ai: { provider: $provider, model: $model, apiKey: $apiKey },
-      gateway: { port: $port },
-      logging: { level: $logLevel, consoleLevel: "warn" },
-      plugins: {
-        entries: {
-          telemetry: {
+jq -n \
+  --arg provider "$PROVIDER" \
+  --arg model "$MODEL" \
+  --arg apiKey "$OPENCLAW_API_KEY" \
+  --argjson port "$PORT" \
+  --arg logLevel "$LOG_LEVEL" \
+  --argjson telemetry "$TELEMETRY_BOOL" \
+  --arg mcpUrl "$N8N_MCP_URL" \
+  '{
+    ai: { provider: $provider, model: $model, apiKey: $apiKey },
+    gateway: { port: $port },
+    logging: { level: $logLevel, consoleLevel: "warn" },
+    plugins: {
+      entries: {
+        telemetry: {
+          enabled: $telemetry,
+          config: {
             enabled: $telemetry,
-            config: {
-              enabled: $telemetry,
-              redact: { enabled: true },
-              integrity: { enabled: true },
-              rateLimit: { enabled: true, maxEventsPerSecond: 100 },
-              rotate: { enabled: true, maxSizeBytes: 52428800, maxFiles: 10 }
-            }
+            redact: { enabled: true },
+            integrity: { enabled: true },
+            rateLimit: { enabled: true, maxEventsPerSecond: 100 },
+            rotate: { enabled: true, maxSizeBytes: 52428800, maxFiles: 10 }
           }
         }
-      },
-      mcp: {
-        servers: {
-          n8n: { type: "sse", url: $mcpUrl }
-        }
       }
-    }' > "${OPENCLAW_HOME}/openclaw.json"
+    },
+    mcp: {
+      servers: {
+        n8n: { type: "sse", url: $mcpUrl }
+      }
+    }
+  }' > "${OPENCLAW_HOME}/openclaw.json"
 
-  echo "  Written: ${OPENCLAW_HOME}/openclaw.json"
-else
-  echo "  WARNING: Source config not found at ${local_config}"
-fi
+echo "  Written: ${OPENCLAW_HOME}/openclaw.json"
 
-# 5. Link workspace files
-echo "Linking workspace files..."
-if [ -d "${OPENCLAW_DIR}/workspace" ]; then
-  # Copy workspace files to OpenClaw home
-  cp -r "${OPENCLAW_DIR}/workspace/"* "${OPENCLAW_HOME}/workspace/" 2>/dev/null || true
-  echo "  Copied workspace files to ${OPENCLAW_HOME}/workspace/"
+# 5. Copy workspace files (rules + skills) to OpenClaw home
+echo "Copying workspace files..."
+if [ -d "${CURSOR_DIR}/rules" ]; then
+  cp "${CURSOR_DIR}/rules/"*.md "${OPENCLAW_HOME}/workspace/" 2>/dev/null || true
 fi
+if [ -d "${CURSOR_DIR}/skills" ]; then
+  cp -r "${CURSOR_DIR}/skills/"* "${OPENCLAW_HOME}/workspace/skills/" 2>/dev/null || true
+fi
+echo "  Copied rules + skills to ${OPENCLAW_HOME}/workspace/"
 
 # 6. Install daemon
 echo "Installing OpenClaw daemon..."
