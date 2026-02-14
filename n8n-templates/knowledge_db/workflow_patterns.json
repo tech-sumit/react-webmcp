@@ -1,0 +1,1233 @@
+{
+  "total_workflows": 8258,
+  "complexity_distribution": {
+    "large (16-30)": 1997,
+    "medium (8-15)": 3478,
+    "small (4-7)": 1676,
+    "complex (30+)": 629,
+    "tiny (1-3)": 478
+  },
+  "avg_nodes_per_workflow": 14.67389198353112,
+  "median_nodes": 12,
+  "trigger_types": {
+    "n8n-nodes-base.scheduleTrigger": 2360,
+    "n8n-nodes-base.manualTrigger": 2039,
+    "n8n-nodes-base.webhook": 1615,
+    "n8n-nodes-base.respondToWebhook": 1160,
+    "n8n-nodes-base.formTrigger": 873,
+    "@n8n/n8n-nodes-langchain.chatTrigger": 636,
+    "n8n-nodes-base.telegramTrigger": 595,
+    "n8n-nodes-base.executeWorkflowTrigger": 449,
+    "@n8n/n8n-nodes-langchain.mcpTrigger": 318,
+    "n8n-nodes-base.gmailTrigger": 288,
+    "n8n-nodes-base.googleDriveTrigger": 255,
+    "n8n-nodes-base.cron": 252,
+    "n8n-nodes-base.googleSheetsTrigger": 201,
+    "n8n-nodes-base.errorTrigger": 139,
+    "n8n-nodes-base.whatsAppTrigger": 92,
+    "n8n-nodes-base.rssFeedReadTrigger": 80,
+    "n8n-nodes-base.jotFormTrigger": 69,
+    "n8n-nodes-base.slackTrigger": 52,
+    "n8n-nodes-base.typeformTrigger": 41,
+    "n8n-nodes-base.airtableTrigger": 35,
+    "n8n-nodes-base.shopifyTrigger": 34,
+    "n8n-nodes-base.googleCalendarTrigger": 34,
+    "n8n-nodes-base.notionTrigger": 30,
+    "n8n-nodes-base.githubTrigger": 29,
+    "n8n-nodes-base.evaluationTrigger": 24,
+    "n8n-nodes-base.calendlyTrigger": 22,
+    "n8n-nodes-base.stripeTrigger": 21,
+    "n8n-nodes-base.hubspotTrigger": 20,
+    "n8n-nodes-base.microsoftOutlookTrigger": 19,
+    "n8n-nodes-base.wooCommerceTrigger": 15,
+    "n8n-nodes-base.localFileTrigger": 14,
+    "n8n-nodes-base.linearTrigger": 12,
+    "n8n-nodes-base.pipedriveTrigger": 11,
+    "n8n-nodes-base.clickUpTrigger": 8,
+    "n8n-nodes-base.twilioTrigger": 8,
+    "n8n-nodes-klicktipp.klicktippTrigger": 7,
+    "n8n-nodes-base.n8nTrigger": 7,
+    "n8n-nodes-base.calTrigger": 7,
+    "n8n-nodes-base.webflowTrigger": 7,
+    "n8n-nodes-base.jiraTrigger": 6,
+    "n8n-nodes-base.mqttTrigger": 6,
+    "n8n-nodes-base.postgresTrigger": 5,
+    "n8n-nodes-base.gitlabTrigger": 5,
+    "n8n-nodes-base.onfleetTrigger": 5,
+    "n8n-nodes-base.gumroadTrigger": 5,
+    "n8n-nodes-base.stravaTrigger": 4,
+    "@n8n/n8n-nodes-langchain.manualChatTrigger": 4,
+    "n8n-nodes-base.salesforceTrigger": 4,
+    "n8n-nodes-base.sendInBlueTrigger": 3,
+    "n8n-nodes-base.facebookLeadAdsTrigger": 3
+  },
+  "top_node_combinations": [
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.mcpTrigger",
+        "n8n-nodes-base.httpRequestTool"
+      ],
+      "count": 60
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 23
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.set"
+      ],
+      "count": 17
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.agentTool",
+        "@n8n/n8n-nodes-langchain.chatTrigger",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.toolThink"
+      ],
+      "count": 17
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest"
+      ],
+      "count": 14
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.respondToWebhook",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 11
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.readWriteFile"
+      ],
+      "count": 8
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.toolHttpRequest",
+        "n8n-nodes-base.executeWorkflowTrigger"
+      ],
+      "count": 8
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.gmail",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.jotFormTrigger",
+        "n8n-nodes-base.set"
+      ],
+      "count": 8
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.googleDrive",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 7
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger"
+      ],
+      "count": 7
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.airtop",
+        "n8n-nodes-base.executeWorkflowTrigger",
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.set"
+      ],
+      "count": 7
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "n8n-nodes-base.executeWorkflowTrigger",
+        "n8n-nodes-base.httpRequestTool"
+      ],
+      "count": 7
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 7
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.respondToWebhook",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 6
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.chatTrigger",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "n8n-nodes-base.httpRequestTool"
+      ],
+      "count": 6
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.scheduleTrigger"
+      ],
+      "count": 6
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 6
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.respondToWebhook",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 5
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.splitInBatches"
+      ],
+      "count": 5
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 5
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.chatTrigger",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "n8n-nodes-base.googleSheetsTool"
+      ],
+      "count": 5
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger"
+      ],
+      "count": 5
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.slack"
+      ],
+      "count": 5
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.executeWorkflowTrigger",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.set"
+      ],
+      "count": 5
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.respondToWebhook",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.ssh",
+        "n8n-nodes-base.switch",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 5
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-scrapegraphai.scrapegraphAi"
+      ],
+      "count": 5
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.googleDocs",
+        "n8n-nodes-base.httpRequest"
+      ],
+      "count": 5
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.switch",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 4
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.form",
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.httpRequest"
+      ],
+      "count": 4
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.set"
+      ],
+      "count": 4
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.set"
+      ],
+      "count": 4
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.set"
+      ],
+      "count": 4
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.chatTrigger",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.set"
+      ],
+      "count": 4
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.outputParserStructured",
+        "n8n-nodes-base.gmail",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.set"
+      ],
+      "count": 4
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+        "@n8n/n8n-nodes-langchain.outputParserStructured",
+        "n8n-nodes-base.gmail",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.set",
+        "n8n-nodes-mcp.mcpClientTool"
+      ],
+      "count": 4
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.limit",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.splitInBatches",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 4
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-scrapegraphai.scrapegraphAi"
+      ],
+      "count": 4
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.set"
+      ],
+      "count": 4
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.gmail",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.webhook",
+        "n8n-nodes-htmlcsstoimage.htmlCssToImage",
+        "n8n-nodes-verifiemail.verifiEmail"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "@apify/n8n-nodes-apify.apify",
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.merge",
+        "n8n-nodes-base.set"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.googleDrive",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.splitInBatches",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.respondToWebhook",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.chatTrigger",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.mcpClientTool",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.github",
+        "n8n-nodes-base.githubTrigger",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.noOp",
+        "n8n-nodes-base.switch"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.scheduleTrigger"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleDrive",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.splitInBatches",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.splitInBatches",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.errorTrigger",
+        "n8n-nodes-base.slack"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.slack",
+        "n8n-nodes-base.wooCommerceTrigger"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.function",
+        "n8n-nodes-base.manualTrigger"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.respondToWebhook",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.chatTrigger",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "n8n-nodes-base.postgresTool"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.errorTrigger",
+        "n8n-nodes-base.gmail"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.openAi",
+        "n8n-nodes-base.respondToWebhook",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.baserow",
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.scheduleTrigger"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.openAi",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.switch",
+        "n8n-nodes-base.telegram",
+        "n8n-nodes-base.telegramTrigger"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.splitOut"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "n8n-nodes-base.respondToWebhook",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.emailSend",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.slack",
+        "n8n-nodes-base.typeformTrigger"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.airtop",
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.manualTrigger"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.mcpTrigger",
+        "n8n-nodes-base.gmailTool"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.merge",
+        "n8n-nodes-base.respondToWebhook",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.html",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.scheduleTrigger"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.telegram"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.chatTrigger",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "@n8n/n8n-nodes-langchain.toolWorkflow"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+        "@n8n/n8n-nodes-langchain.outputParserStructured",
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.telegram"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.extractFromFile",
+        "n8n-nodes-base.form",
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.httpRequest"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.manualTrigger"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+        "@n8n/n8n-nodes-langchain.outputParserStructured",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.set",
+        "n8n-nodes-mcp.mcpClientTool"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.set"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.convertToFile",
+        "n8n-nodes-base.gmail",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.splitOut"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.splitInBatches"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-aimlapi.aimlApi",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.switch",
+        "n8n-nodes-base.telegram",
+        "n8n-nodes-base.telegramTrigger"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.convertToFile",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.microsoftOutlook",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.splitOut"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.openWeatherMap",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "@vlm-run/n8n-nodes-vlmrun.vlmRun",
+        "n8n-nodes-base.googleDrive",
+        "n8n-nodes-base.googleDriveTrigger",
+        "n8n-nodes-base.googleSheets"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.functionItem",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.uproc"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 3
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.telegram",
+        "n8n-nodes-base.telegramTrigger"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.merge"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.emailSend",
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.googleDrive",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.discord",
+        "n8n-nodes-base.gmail",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.splitInBatches",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.discord",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.scheduleTrigger"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.gmail",
+        "n8n-nodes-base.googleDrive",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.webhook",
+        "n8n-nodes-htmlcsstopdf.htmlcsstopdf"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.convertToFile",
+        "n8n-nodes-base.function",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.odoo",
+        "n8n-nodes-base.respondToWebhook",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.gmail",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.scheduleTrigger"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.cron",
+        "n8n-nodes-base.function",
+        "n8n-nodes-base.googleCalendar",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.noOp",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.splitInBatches",
+        "n8n-nodes-base.trello"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.webhook"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.gmail",
+        "n8n-nodes-base.googleSheets",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.splitInBatches"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "@blotato/n8n-nodes-blotato.blotato",
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+        "@n8n/n8n-nodes-langchain.outputParserStructured",
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.scheduleTrigger",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "n8n-nodes-base.emailSend",
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.googleDrive",
+        "n8n-nodes-base.httpRequest",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.switch",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 2
+    },
+    {
+      "nodes": [
+        "@n8n/n8n-nodes-langchain.agent",
+        "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "n8n-nodes-base.airtable",
+        "n8n-nodes-base.formTrigger",
+        "n8n-nodes-base.gmail",
+        "n8n-nodes-base.if",
+        "n8n-nodes-base.set",
+        "n8n-nodes-base.wait"
+      ],
+      "count": 2
+    }
+  ],
+  "archetype_counts": {
+    "AI/LangChain Agent": 4550,
+    "Scheduled/Cron": 1084,
+    "Webhook-Driven": 691,
+    "AI/LLM Integration": 82
+  },
+  "archetype_examples": {
+    "AI/LangChain Agent": [
+      {
+        "id": 10000,
+        "name": "Auto-create TikTok videos with VEED.io AI avatars, ElevenLabs & GPT-4"
+      },
+      {
+        "id": 10002,
+        "name": "Track competitor SEO keywords with Decodo + GPT-4.1-mini + Google Sheets"
+      },
+      {
+        "id": 10005,
+        "name": "Generate song lyrics and music from text prompts using OpenAI and Fal.ai Minimax"
+      },
+      {
+        "id": 10007,
+        "name": "Curate learning content from Reddit & RSS with GPT-4.1-mini and Google Sheets"
+      },
+      {
+        "id": 10008,
+        "name": "Generate Shopify product listings from images with Gemini AI and Airtable"
+      },
+      {
+        "id": 10009,
+        "name": "Create personalized B2B outreach emails with Tavily Research & OpenRouter LLM"
+      },
+      {
+        "id": 10010,
+        "name": "Score product-qualified leads with Amplitude, Claude & PDL for sales routing"
+      },
+      {
+        "id": 10025,
+        "name": "Automate interior design lead qualification with AI & human approval to Notion"
+      },
+      {
+        "id": 10029,
+        "name": "Automate invoice processing with OCR, GPT-4 & Salesforce opportunity creation"
+      },
+      {
+        "id": 10033,
+        "name": "WhatsApp virtual agent with Gemini AI - handles text & voice with knowledge base"
+      }
+    ],
+    "Scheduled/Cron": [
+      {
+        "id": 10028,
+        "name": "Automatic Eventbrite attendance tagging in KlickTipp"
+      },
+      {
+        "id": 10038,
+        "name": "Automate Facebook page token renewal with data tables storage"
+      },
+      {
+        "id": 10054,
+        "name": "Automated CVE scanning of Bug Bounty programs with Nuclei and Project Discovery"
+      },
+      {
+        "id": 10057,
+        "name": "Generate Google ad copy automatically with Claude 3.5, Channable & Relevance AI"
+      },
+      {
+        "id": 10058,
+        "name": "Automate Google Ads copy optimization with Channable feed and Relevance AI"
+      },
+      {
+        "id": 1005,
+        "name": "Send daily weather updates to a phone number via Plivo"
+      },
+      {
+        "id": 10060,
+        "name": "🛍️ Google Shopping feed optimization with Channable, Relevance AI & Merchant API"
+      },
+      {
+        "id": 10067,
+        "name": "Automate video story publishing to Facebook Page using Google Drive and Sheets"
+      },
+      {
+        "id": 10076,
+        "name": "Automate Dutch Public Procurement Data Collection with TenderNed"
+      },
+      {
+        "id": 10105,
+        "name": "Automate performance review process with Google Sheets, Calendar, Email & Slack"
+      }
+    ],
+    "Webhook-Driven": [
+      {
+        "id": 10040,
+        "name": "Create a complete user authentication system with PostgreSQL & webhooks"
+      },
+      {
+        "id": 10053,
+        "name": "Automated UGC video generator with Gemini images and SORA 2"
+      },
+      {
+        "id": 10081,
+        "name": "Automated Interview Tracker with Google Calendar, Sheets & Gmail Alerts"
+      },
+      {
+        "id": 10104,
+        "name": "Form to meeting: Google Calendar, Zoom, Gmail & Slack booking automation"
+      },
+      {
+        "id": 10114,
+        "name": "Manage customer inquiries from email & web forms with Slack & Google Sheets"
+      },
+      {
+        "id": 10130,
+        "name": "Generate event badges with QR codes, HTMLCSStoImage, Gmail & Google Sheets"
+      },
+      {
+        "id": 10133,
+        "name": "Verify emails & generate resume cards with VerifiEmail, HTML CSS to image & Gmail"
+      },
+      {
+        "id": 10138,
+        "name": "Newsletter signup flow with Email Verification API, Gmail & Google Sheets tracking"
+      },
+      {
+        "id": 10161,
+        "name": "Automated referral reward system with email verification and visual coupons"
+      },
+      {
+        "id": 10163,
+        "name": "Create verified user profiles with email validation, PDF generation & Gmail delivery"
+      }
+    ],
+    "AI/LLM Integration": [
+      {
+        "id": 10154,
+        "name": "Monitor competitor prices with Firecrawl, GPT-4.1, Sheets & Gmail alerts"
+      },
+      {
+        "id": 10283,
+        "name": "Automate customer support triage with GPT, Gmail, Slack & analytics dashboard"
+      },
+      {
+        "id": 10284,
+        "name": "Monitor stock market with AI: news analysis & multi-channel alerts via Slack & Telegram"
+      },
+      {
+        "id": 10286,
+        "name": "AI meeting summary & action item tracker with Notion, Slack, and Gmail"
+      },
+      {
+        "id": 10502,
+        "name": "Create AI videos from prompts with OpenAI script, TTS & Pexels B-roll assembly"
+      },
+      {
+        "id": 11306,
+        "name": "Transform NASA patents into business ideas with OpenAI and send to Google Sheets & Slack"
+      },
+      {
+        "id": 11601,
+        "name": "Handle failed payment renewals with AI analysis, Jira tickets and Slack alerts"
+      },
+      {
+        "id": 11610,
+        "name": "Automate Incident Management with PagerDuty, Port AI, Jira & Slack"
+      },
+      {
+        "id": 11697,
+        "name": "AI-powered bug triage system with OpenAI, Jira and Slack alerts"
+      },
+      {
+        "id": 11726,
+        "name": "Orchestrate security vulnerability remediation with Port, OpenAI, Jira and Slack"
+      }
+    ]
+  }
+}

@@ -1,0 +1,315 @@
+[
+  {
+    "id": 25,
+    "name": "AI",
+    "displayName": null,
+    "icon": "✨",
+    "parent": null
+  },
+  {
+    "id": 47,
+    "name": "AI Chatbot",
+    "displayName": "AI Chatbot, Assistant, Agent",
+    "icon": "🏷️",
+    "parent": {
+      "id": 25,
+      "name": "AI",
+      "icon": "✨"
+    }
+  },
+  {
+    "id": 48,
+    "name": "AI RAG",
+    "displayName": "AI RAG, MCP & Knowledge Retrieval",
+    "icon": "🏷️",
+    "parent": {
+      "id": 25,
+      "name": "AI",
+      "icon": "✨"
+    }
+  },
+  {
+    "id": 49,
+    "name": "AI Summarization",
+    "displayName": "AI Summarization, Classification & Evaluation",
+    "icon": "🏷️",
+    "parent": {
+      "id": 25,
+      "name": "AI",
+      "icon": "✨"
+    }
+  },
+  {
+    "id": 31,
+    "name": "Content Creation",
+    "displayName": "Content Creation, AI Copywriting & Video Automation",
+    "icon": "🏷️",
+    "parent": {
+      "id": 27,
+      "name": "Marketing",
+      "icon": "📣"
+    }
+  },
+  {
+    "id": 39,
+    "name": "CRM",
+    "displayName": "Sales Operations & CRM Workflows",
+    "icon": "🏷️",
+    "parent": {
+      "id": 2,
+      "name": "Sales",
+      "icon": "🤝"
+    }
+  },
+  {
+    "id": 44,
+    "name": "Crypto Trading",
+    "displayName": "Crypto Trading & Stock Market",
+    "icon": "🏷️",
+    "parent": {
+      "id": 11,
+      "name": "Other",
+      "icon": "💎"
+    }
+  },
+  {
+    "id": 16,
+    "name": "DevOps",
+    "displayName": "DevOps & CI/CD",
+    "icon": "☁️",
+    "parent": {
+      "id": 28,
+      "name": "IT Ops",
+      "icon": "👩‍💻"
+    }
+  },
+  {
+    "id": 35,
+    "name": "Document Extraction",
+    "displayName": "Extraction, Analysis & Document Generation",
+    "icon": "🏷️",
+    "parent": {
+      "id": 30,
+      "name": "Document Ops",
+      "icon": "🏷️"
+    }
+  },
+  {
+    "id": 30,
+    "name": "Document Ops",
+    "displayName": null,
+    "icon": "🏷️",
+    "parent": null
+  },
+  {
+    "id": 5,
+    "name": "Engineering",
+    "displayName": null,
+    "icon": "⚒️",
+    "parent": {
+      "id": 28,
+      "name": "IT Ops",
+      "icon": "👩‍💻"
+    }
+  },
+  {
+    "id": 36,
+    "name": "File Management",
+    "displayName": null,
+    "icon": "🏷️",
+    "parent": {
+      "id": 30,
+      "name": "Document Ops",
+      "icon": "🏷️"
+    }
+  },
+  {
+    "id": 17,
+    "name": "HR",
+    "displayName": "HR Workflow Automation",
+    "icon": "🤝",
+    "parent": {
+      "id": 11,
+      "name": "Other",
+      "icon": "💎"
+    }
+  },
+  {
+    "id": 42,
+    "name": "Internal Wiki",
+    "displayName": "Internal Company Wiki/Chatbot",
+    "icon": "🏷️",
+    "parent": {
+      "id": 13,
+      "name": "Support",
+      "icon": "🤗"
+    }
+  },
+  {
+    "id": 34,
+    "name": "Invoice Processing",
+    "displayName": null,
+    "icon": "🏷️",
+    "parent": {
+      "id": 30,
+      "name": "Document Ops",
+      "icon": "🏷️"
+    }
+  },
+  {
+    "id": 28,
+    "name": "IT Ops",
+    "displayName": null,
+    "icon": "👩‍💻",
+    "parent": null
+  },
+  {
+    "id": 37,
+    "name": "Lead Generation",
+    "displayName": "Lead Generation, Enrichment & Qualification",
+    "icon": "🏷️",
+    "parent": {
+      "id": 2,
+      "name": "Sales",
+      "icon": "🤝"
+    }
+  },
+  {
+    "id": 38,
+    "name": "Lead Nurturing",
+    "displayName": "Lead Nurturing/Interaction & AI Sales Agents",
+    "icon": "🏷️",
+    "parent": {
+      "id": 2,
+      "name": "Sales",
+      "icon": "🤝"
+    }
+  },
+  {
+    "id": 27,
+    "name": "Marketing",
+    "displayName": null,
+    "icon": "📣",
+    "parent": null
+  },
+  {
+    "id": 32,
+    "name": "Market Research",
+    "displayName": "Audience, Product & Market Insights",
+    "icon": "🏷️",
+    "parent": {
+      "id": 27,
+      "name": "Marketing",
+      "icon": "📣"
+    }
+  },
+  {
+    "id": 45,
+    "name": "Miscellaneous",
+    "displayName": null,
+    "icon": "🏷️",
+    "parent": {
+      "id": 11,
+      "name": "Other",
+      "icon": "💎"
+    }
+  },
+  {
+    "id": 51,
+    "name": "Multimodal AI",
+    "displayName": "Multimodal AI & Content Generation",
+    "icon": "🏷️",
+    "parent": {
+      "id": 25,
+      "name": "AI",
+      "icon": "✨"
+    }
+  },
+  {
+    "id": 11,
+    "name": "Other",
+    "displayName": null,
+    "icon": "💎",
+    "parent": null
+  },
+  {
+    "id": 43,
+    "name": "Personal Productivity",
+    "displayName": null,
+    "icon": "🏷️",
+    "parent": {
+      "id": 11,
+      "name": "Other",
+      "icon": "💎"
+    }
+  },
+  {
+    "id": 46,
+    "name": "Project Management",
+    "displayName": null,
+    "icon": "🏷️",
+    "parent": {
+      "id": 11,
+      "name": "Other",
+      "icon": "💎"
+    }
+  },
+  {
+    "id": 2,
+    "name": "Sales",
+    "displayName": null,
+    "icon": "🤝",
+    "parent": null
+  },
+  {
+    "id": 29,
+    "name": "SecOps",
+    "displayName": "SecOps Automation",
+    "icon": "🔒",
+    "parent": {
+      "id": 28,
+      "name": "IT Ops",
+      "icon": "👩‍💻"
+    }
+  },
+  {
+    "id": 33,
+    "name": "Social Media",
+    "displayName": "Social Media Automation & Email Marketing Campaigns",
+    "icon": "🏷️",
+    "parent": {
+      "id": 27,
+      "name": "Marketing",
+      "icon": "📣"
+    }
+  },
+  {
+    "id": 13,
+    "name": "Support",
+    "displayName": null,
+    "icon": "🤗",
+    "parent": null
+  },
+  {
+    "id": 40,
+    "name": "Support Chatbot",
+    "displayName": "Customer Support Chatbot",
+    "icon": "🏷️",
+    "parent": {
+      "id": 13,
+      "name": "Support",
+      "icon": "🤗"
+    }
+  },
+  {
+    "id": 41,
+    "name": "Ticket Management",
+    "displayName": "Ticket/Email Enrichment, Triage & Response",
+    "icon": "🏷️",
+    "parent": {
+      "id": 13,
+      "name": "Support",
+      "icon": "🤗"
+    }
+  }
+]

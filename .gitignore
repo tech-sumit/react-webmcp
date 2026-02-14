@@ -25,6 +25,14 @@ shared/exchange/*
 *.crt
 *.p12
 
+# Downloaded templates (large, re-downloadable)
+n8n-templates/workflows/
+n8n-templates/.download_progress.json
+n8n-templates/template_index.json
+
+# External providers (vendored)
+external/
+
 # OS / IDE
 .DS_Store
 *.swp
