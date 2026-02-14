@@ -4,7 +4,12 @@
     "uid": "infrastructure",
     "title": "Infrastructure",
     "description": "Container CPU/memory (cAdvisor), VM system metrics (node-exporter)",
-    "tags": ["infrastructure", "containers", "vm", "auto-provisioned"],
+    "tags": [
+      "infrastructure",
+      "containers",
+      "vm",
+      "auto-provisioned"
+    ],
     "timezone": "browser",
     "schemaVersion": 39,
     "version": 1,
@@ -18,74 +23,135 @@
         "id": 1,
         "title": "Container CPU Usage",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
         "targets": [
           {
             "expr": "sort_desc(rate(container_cpu_usage_seconds_total{name=~\"n8n.*\"}[5m]))",
             "legendFormat": "{{name}}",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
           "defaults": {
             "unit": "percentunit",
-            "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            "custom": {
+              "drawStyle": "line",
+              "fillOpacity": 10
+            }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 2,
         "title": "Container Memory Usage",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
         "targets": [
           {
             "expr": "container_memory_usage_bytes{name=~\"n8n.*\"}",
             "legendFormat": "{{name}}",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
           "defaults": {
             "unit": "bytes",
-            "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            "custom": {
+              "drawStyle": "line",
+              "fillOpacity": 10
+            }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 3,
         "title": "Container Network I/O",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
         "targets": [
           {
             "expr": "rate(container_network_receive_bytes_total{name=~\"n8n.*\"}[5m])",
             "legendFormat": "{{name}} RX",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           },
           {
             "expr": "rate(container_network_transmit_bytes_total{name=~\"n8n.*\"}[5m])",
             "legendFormat": "{{name}} TX",
-            "refId": "B"
+            "refId": "B",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
           "defaults": {
             "unit": "Bps",
-            "custom": { "drawStyle": "line", "fillOpacity": 5 }
+            "custom": {
+              "drawStyle": "line",
+              "fillOpacity": 5
+            }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 4,
         "title": "Container Restarts",
         "type": "stat",
-        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
         "targets": [
           {
             "expr": "sum by (name) (increase(container_restart_count{name=~\"n8n.*\"}[1h]))",
             "legendFormat": "{{name}}",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -93,24 +159,46 @@
             "unit": "short",
             "thresholds": {
               "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 1 },
-                { "color": "red", "value": 3 }
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "red",
+                  "value": 3
+                }
               ]
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 5,
         "title": "VM CPU Usage",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 16
+        },
         "targets": [
           {
             "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
             "legendFormat": "CPU Usage %",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -120,24 +208,46 @@
             "max": 100,
             "thresholds": {
               "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 70 },
-                { "color": "red", "value": 90 }
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "red",
+                  "value": 90
+                }
               ]
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 6,
         "title": "VM Memory Usage",
         "type": "gauge",
-        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 8,
+          "y": 16
+        },
         "targets": [
           {
             "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
             "legendFormat": "Memory Used %",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -147,24 +257,46 @@
             "max": 100,
             "thresholds": {
               "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 70 },
-                { "color": "red", "value": 85 }
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "red",
+                  "value": 85
+                }
               ]
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 7,
         "title": "VM Disk Usage",
         "type": "gauge",
-        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 16
+        },
         "targets": [
           {
             "expr": "(1 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"})) * 100",
             "legendFormat": "Disk Used %",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -174,12 +306,25 @@
             "max": 100,
             "thresholds": {
               "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 70 },
-                { "color": "red", "value": 80 }
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
               ]
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       }
     ]

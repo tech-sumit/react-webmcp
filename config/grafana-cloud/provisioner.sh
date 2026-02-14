@@ -23,11 +23,12 @@ fi
 
 # Validate required environment variables
 : "${GRAFANA_CLOUD_STACK_URL:?ERROR: GRAFANA_CLOUD_STACK_URL not set}"
-: "${GRAFANA_CLOUD_USER:?ERROR: GRAFANA_CLOUD_USER not set}"
-: "${GRAFANA_CLOUD_API_KEY:?ERROR: GRAFANA_CLOUD_API_KEY not set}"
+
+# Use admin token (Editor service account) for provisioning; fall back to API key
+GRAFANA_TOKEN="${GRAFANA_CLOUD_ADMIN_TOKEN:-${GRAFANA_CLOUD_API_KEY:?ERROR: Neither GRAFANA_CLOUD_ADMIN_TOKEN nor GRAFANA_CLOUD_API_KEY set}}"
 
 GRAFANA_API="${GRAFANA_CLOUD_STACK_URL}/api"
-AUTH_HEADER="Authorization: Bearer ${GRAFANA_CLOUD_API_KEY}"
+AUTH_HEADER="Authorization: Bearer ${GRAFANA_TOKEN}"
 
 # =============================================================================
 # Functions
@@ -80,24 +81,65 @@ push_alerts() {
     return 1
   fi
 
-  # Grafana Cloud expects alert rules via the provisioning API
-  local response http_code body
-  response=$(curl -s -w "\n%{http_code}" \
-    -X POST "${GRAFANA_API}/v1/provisioning/alert-rules" \
-    -H "${AUTH_HEADER}" \
-    -H "Content-Type: application/yaml" \
-    -H "X-Disable-Provenance: true" \
-    --data-binary @"$ALERT_RULES_FILE")
+  # Parse YAML into individual rules, push each via Grafana provisioning API
+  local count=0
+  python3 -c "
+import yaml, json
 
-  http_code="${response##*$'\n'}"
-  body="${response%$'\n'*}"
+with open('${ALERT_RULES_FILE}') as f:
+    data = yaml.safe_load(f)
 
-  if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 202 ]; then
-    echo "  OK: Alert rules provisioned"
-  else
-    echo "  ERROR: HTTP ${http_code}: ${body}"
-    return 1
-  fi
+for g in data.get('groups', []):
+    folder = g.get('folder', 'default')
+    group_name = g.get('name', 'default')
+
+    for rule in g.get('rules', []):
+        payload = {
+            'title': rule.get('title', ''),
+            'condition': rule.get('condition', 'C'),
+            'data': rule.get('data', []),
+            'folderUID': folder,
+            'ruleGroup': group_name,
+            'for': rule.get('for', '0s'),
+            'labels': rule.get('labels', {}),
+            'annotations': rule.get('annotations', {}),
+            'noDataState': 'OK',
+            'execErrState': 'Alerting',
+        }
+        print(json.dumps({'folder': folder, 'title': rule.get('title',''), 'payload': payload}))
+" | while IFS= read -r line; do
+    local title folder payload_json
+    title=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['title'])")
+    folder=$(echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['folder'])")
+    payload_json=$(echo "$line" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['payload']))")
+
+    # Ensure folder exists (ignore if already exists)
+    curl -s -o /dev/null \
+      -X POST "${GRAFANA_API}/folders" \
+      -H "${AUTH_HEADER}" \
+      -H "Content-Type: application/json" \
+      -d "{\"uid\":\"${folder}\",\"title\":\"${folder}\"}" 2>/dev/null || true
+
+    # Create alert rule
+    local response http_code body
+    response=$(curl -s -w "\n%{http_code}" \
+      -X POST "${GRAFANA_API}/v1/provisioning/alert-rules" \
+      -H "${AUTH_HEADER}" \
+      -H "Content-Type: application/json" \
+      -H "X-Disable-Provenance: true" \
+      -d "$payload_json")
+
+    http_code="${response##*$'\n'}"
+    body="${response%$'\n'*}"
+
+    if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
+      echo "  OK: ${title}"
+    else
+      echo "  WARN: HTTP ${http_code} for '${title}': ${body}"
+    fi
+  done
+
+  echo "  Done: alert rules provisioned"
 }
 
 # =============================================================================

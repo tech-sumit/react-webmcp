@@ -4,7 +4,11 @@
     "uid": "logs-explorer",
     "title": "Logs Explorer",
     "description": "Filterable log exploration by service, level, and time range",
-    "tags": ["logs", "loki", "auto-provisioned"],
+    "tags": [
+      "logs",
+      "loki",
+      "auto-provisioned"
+    ],
     "timezone": "browser",
     "schemaVersion": 39,
     "version": 1,
@@ -18,31 +22,63 @@
         {
           "name": "service",
           "type": "query",
-          "datasource": { "type": "loki" },
-          "query": "label_values(service)",
-          "current": { "text": "All", "value": "$__all" },
+          "datasource": {
+            "type": "loki",
+            "uid": "grafanacloud-logs"
+          },
+          "query": {
+            "type": 1,
+            "label": "container_name"
+          },
+          "refresh": 2,
           "includeAll": true,
+          "allValue": ".+",
           "multi": true,
-          "refresh": 2
+          "current": {
+            "text": "All",
+            "value": "$__all"
+          }
         },
         {
           "name": "level",
           "type": "custom",
-          "current": { "text": "All", "value": "$__all" },
+          "query": "|= \"\",| json | level=\"error\",| json | level=\"warn\",| json | level=\"info\"",
+          "current": {
+            "text": "|= \"\"",
+            "value": "|= \"\""
+          },
+          "includeAll": false,
           "options": [
-            { "text": "All", "value": "$__all" },
-            { "text": "error", "value": "error" },
-            { "text": "warn", "value": "warn" },
-            { "text": "info", "value": "info" },
-            { "text": "debug", "value": "debug" }
-          ],
-          "includeAll": true,
-          "multi": false
+            {
+              "text": "All",
+              "value": "|= \"\"",
+              "selected": true
+            },
+            {
+              "text": "Error",
+              "value": "| json | level=\"error\"",
+              "selected": false
+            },
+            {
+              "text": "Warn",
+              "value": "| json | level=\"warn\"",
+              "selected": false
+            },
+            {
+              "text": "Info",
+              "value": "| json | level=\"info\"",
+              "selected": false
+            }
+          ]
         },
         {
           "name": "search",
           "type": "textbox",
-          "current": { "text": "", "value": "" }
+          "current": {
+            "text": "",
+            "value": ""
+          },
+          "query": ""
         }
       ]
     },
@@ -51,51 +87,92 @@
         "id": 1,
         "title": "Log Volume by Service",
         "type": "timeseries",
-        "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+        "gridPos": {
+          "h": 6,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
         "targets": [
           {
-            "expr": "sum by (service) (count_over_time({service=~\"$service\"} [$__interval]))",
+            "expr": "sum by (container_name) (count_over_time({container_name=~\"$service\"} [$__interval]))",
             "legendFormat": "{{service}}",
             "refId": "A",
-            "datasource": { "type": "loki" }
+            "datasource": {
+              "type": "loki",
+              "uid": "grafanacloud-logs"
+            }
           }
         ],
         "fieldConfig": {
           "defaults": {
-            "custom": { "drawStyle": "bars", "fillOpacity": 50 }
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 50
+            }
           }
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "grafanacloud-logs"
         }
       },
       {
         "id": 2,
         "title": "Error Log Volume",
         "type": "timeseries",
-        "gridPos": { "h": 6, "w": 24, "x": 0, "y": 6 },
+        "gridPos": {
+          "h": 6,
+          "w": 24,
+          "x": 0,
+          "y": 6
+        },
         "targets": [
           {
-            "expr": "sum by (service) (count_over_time({service=~\"$service\"} | json | level=\"error\" [$__interval]))",
+            "expr": "sum by (container_name) (count_over_time({container_name=~\"$service\"} | json | level=\"error\" [$__interval]))",
             "legendFormat": "{{service}} errors",
             "refId": "A",
-            "datasource": { "type": "loki" }
+            "datasource": {
+              "type": "loki",
+              "uid": "grafanacloud-logs"
+            }
           }
         ],
         "fieldConfig": {
           "defaults": {
-            "custom": { "drawStyle": "bars", "fillOpacity": 50 },
-            "color": { "fixedColor": "red", "mode": "fixed" }
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 50
+            },
+            "color": {
+              "fixedColor": "red",
+              "mode": "fixed"
+            }
           }
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "grafanacloud-logs"
         }
       },
       {
         "id": 3,
         "title": "Log Stream",
         "type": "logs",
-        "gridPos": { "h": 16, "w": 24, "x": 0, "y": 12 },
+        "gridPos": {
+          "h": 16,
+          "w": 24,
+          "x": 0,
+          "y": 12
+        },
         "targets": [
           {
-            "expr": "{service=~\"$service\"} ${level:pipe} ${search:pipe}",
+            "expr": "{container_name=~\"$service\"} $level |= \"$search\"",
             "refId": "A",
-            "datasource": { "type": "loki" }
+            "datasource": {
+              "type": "loki",
+              "uid": "grafanacloud-logs"
+            }
           }
         ],
         "options": {
@@ -107,6 +184,10 @@
           "enableLogDetails": true,
           "sortOrder": "Descending",
           "dedupStrategy": "none"
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "grafanacloud-logs"
         }
       }
     ]

@@ -4,7 +4,11 @@
     "uid": "openclaw-agent",
     "title": "OpenClaw Agent Activity",
     "description": "Tool calls, LLM usage/cost, session lifecycle, message throughput, failed tools",
-    "tags": ["openclaw", "ai-agent", "auto-provisioned"],
+    "tags": [
+      "openclaw",
+      "ai-agent",
+      "auto-provisioned"
+    ],
     "timezone": "browser",
     "schemaVersion": 39,
     "version": 1,
@@ -15,124 +19,170 @@
     },
     "panels": [
       {
-        "id": 1,
-        "title": "Tool Call Frequency",
+        "title": "Tool Calls Over Time",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "datasource": {
+          "type": "loki",
+          "uid": "grafanacloud-logs"
+        },
         "targets": [
           {
-            "expr": "{service=\"openclaw_telemetry\", event_type=\"tool.end\"} | json | line_format \"{{.toolName}}\"",
-            "legendFormat": "",
+            "datasource": {
+              "type": "loki",
+              "uid": "grafanacloud-logs"
+            },
+            "expr": "count_over_time({service=\"openclaw\"} |= \"tool end\" [$__interval])",
             "refId": "A",
-            "datasource": { "type": "loki" }
+            "legendFormat": "Tool Calls"
           }
         ],
-        "description": "Rate of tool invocations from OpenClaw telemetry"
-      },
-      {
-        "id": 2,
-        "title": "Tool Call Duration (avg)",
-        "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-        "targets": [
-          {
-            "expr": "{service=\"openclaw_telemetry\", event_type=\"tool.end\"} | json | unwrap durationMs | avg_over_time([5m]) by (toolName)",
-            "legendFormat": "{{toolName}}",
-            "refId": "A",
-            "datasource": { "type": "loki" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": { "unit": "ms" }
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
         }
       },
       {
-        "id": 3,
-        "title": "LLM Token Usage",
+        "title": "Tool Calls by Tool",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "datasource": {
+          "type": "loki",
+          "uid": "grafanacloud-logs"
+        },
         "targets": [
           {
-            "expr": "{service=\"openclaw_telemetry\", event_type=\"llm.usage\"} | json | unwrap totalTokens | sum_over_time([1h])",
-            "legendFormat": "Total Tokens / hr",
+            "datasource": {
+              "type": "loki",
+              "uid": "grafanacloud-logs"
+            },
+            "expr": "sum by (tool) (count_over_time({service=\"openclaw\"} |= \"tool end\" | regexp \"tool=(?P<tool>\\\\w+)\" [$__interval]))",
             "refId": "A",
-            "datasource": { "type": "loki" }
+            "legendFormat": "{{tool}}"
           }
         ],
-        "fieldConfig": {
-          "defaults": { "unit": "short" }
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
         }
       },
       {
-        "id": 4,
-        "title": "LLM Cost Over Time",
-        "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-        "targets": [
-          {
-            "expr": "{service=\"openclaw_telemetry\", event_type=\"llm.usage\"} | json | unwrap costUsd | sum_over_time([1h])",
-            "legendFormat": "Cost USD / hr",
-            "refId": "A",
-            "datasource": { "type": "loki" }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": { "unit": "currencyUSD" }
-        }
-      },
-      {
-        "id": 5,
         "title": "Agent Sessions",
         "type": "stat",
-        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+        "datasource": {
+          "type": "loki",
+          "uid": "grafanacloud-logs"
+        },
         "targets": [
           {
-            "expr": "count_over_time({service=\"openclaw_telemetry\", event_type=\"agent.start\"}[24h])",
-            "legendFormat": "Sessions Today",
+            "datasource": {
+              "type": "loki",
+              "uid": "grafanacloud-logs"
+            },
+            "expr": "count_over_time({service=\"openclaw\"} |= \"run registered\" [24h])",
             "refId": "A",
-            "datasource": { "type": "loki" }
+            "legendFormat": "Sessions (24h)"
           }
         ],
-        "fieldConfig": {
-          "defaults": { "unit": "short" }
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 8
         }
       },
       {
-        "id": 6,
-        "title": "Failed Tool Calls",
-        "type": "table",
-        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+        "title": "Agent Run Duration",
+        "type": "stat",
+        "datasource": {
+          "type": "loki",
+          "uid": "grafanacloud-logs"
+        },
         "targets": [
           {
-            "expr": "{service=\"openclaw_telemetry\", event_type=\"tool.end\"} | json | success=\"false\" | line_format \"{{.toolName}}: {{.error}}\"",
-            "legendFormat": "",
+            "datasource": {
+              "type": "loki",
+              "uid": "grafanacloud-logs"
+            },
+            "expr": "avg_over_time({service=\"openclaw\"} |= \"run done\" | regexp \"durationMs=(?P<duration>\\\\d+)\" | unwrap duration [$__range])",
             "refId": "A",
-            "datasource": { "type": "loki" }
+            "legendFormat": "Avg Duration (ms)"
           }
         ],
-        "description": "Recent tool call failures with error messages"
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 6,
+          "y": 8
+        }
       },
       {
-        "id": 7,
-        "title": "Message Throughput (In/Out)",
+        "title": "Warnings & Errors",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+        "datasource": {
+          "type": "loki",
+          "uid": "grafanacloud-logs"
+        },
         "targets": [
           {
-            "expr": "count_over_time({service=\"openclaw_telemetry\", event_type=\"message.in\"}[5m])",
-            "legendFormat": "Inbound",
+            "datasource": {
+              "type": "loki",
+              "uid": "grafanacloud-logs"
+            },
+            "expr": "count_over_time({service=\"openclaw\"} | json | _meta_logLevelName=\"WARN\" [$__interval])",
             "refId": "A",
-            "datasource": { "type": "loki" }
+            "legendFormat": "Warnings"
           },
           {
-            "expr": "count_over_time({service=\"openclaw_telemetry\", event_type=\"message.out\"}[5m])",
-            "legendFormat": "Outbound",
+            "datasource": {
+              "type": "loki",
+              "uid": "grafanacloud-logs"
+            },
+            "expr": "count_over_time({service=\"openclaw\"} | json | _meta_logLevelName=\"ERROR\" [$__interval])",
             "refId": "B",
-            "datasource": { "type": "loki" }
+            "legendFormat": "Errors"
           }
         ],
-        "fieldConfig": {
-          "defaults": { "unit": "short" }
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      },
+      {
+        "title": "OpenClaw Log Stream",
+        "type": "logs",
+        "datasource": {
+          "type": "loki",
+          "uid": "grafanacloud-logs"
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "loki",
+              "uid": "grafanacloud-logs"
+            },
+            "expr": "{service=\"openclaw\"}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "showCommonLabels": false,
+          "wrapLogMessage": true,
+          "prettifyLogMessage": false,
+          "enableLogDetails": true,
+          "sortOrder": "Descending"
+        },
+        "gridPos": {
+          "h": 10,
+          "w": 24,
+          "x": 0,
+          "y": 16
         }
       }
     ]

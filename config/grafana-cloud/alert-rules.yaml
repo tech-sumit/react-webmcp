@@ -310,7 +310,7 @@ groups:
             relativeTimeRange:
               from: 3600
               to: 0
-            datasourceUid: grafanacloud-loki
+            datasourceUid: grafanacloud-logs
             model:
               expr: |
                 sum(sum_over_time({service="openclaw_telemetry", event_type="llm.usage"} | json | unwrap costUsd [1h]))
@@ -342,7 +342,7 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: grafanacloud-loki
+            datasourceUid: grafanacloud-logs
             model:
               expr: |
                 sum(count_over_time({service="openclaw_telemetry", event_type="tool.end"} | json | success="false" [5m]))
@@ -375,7 +375,7 @@ groups:
             relativeTimeRange:
               from: 3600
               to: 0
-            datasourceUid: grafanacloud-loki
+            datasourceUid: grafanacloud-logs
             model:
               expr: |
                 sum(sum_over_time({service="openclaw_telemetry", event_type="llm.usage"} | json | unwrap totalTokens [1h]))

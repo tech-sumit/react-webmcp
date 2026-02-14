@@ -4,7 +4,11 @@
     "uid": "n8n-overview",
     "title": "n8n Overview",
     "description": "Workflow executions, success/failure rate, queue depth, execution duration",
-    "tags": ["n8n", "workflows", "auto-provisioned"],
+    "tags": [
+      "n8n",
+      "workflows",
+      "auto-provisioned"
+    ],
     "timezone": "browser",
     "schemaVersion": 39,
     "version": 1,
@@ -18,17 +22,30 @@
         "id": 1,
         "title": "Workflow Executions (Success vs Error)",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
         "targets": [
           {
             "expr": "sum(rate(n8n_workflow_execution_total{status=\"success\"}[5m])) or vector(0)",
             "legendFormat": "Success",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           },
           {
             "expr": "sum(rate(n8n_workflow_execution_total{status=\"error\"}[5m])) or vector(0)",
             "legendFormat": "Error",
-            "refId": "B"
+            "refId": "B",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -41,26 +58,61 @@
           },
           "overrides": [
             {
-              "matcher": { "id": "byName", "options": "Error" },
-              "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+              "matcher": {
+                "id": "byName",
+                "options": "Error"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "red",
+                    "mode": "fixed"
+                  }
+                }
+              ]
             },
             {
-              "matcher": { "id": "byName", "options": "Success" },
-              "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+              "matcher": {
+                "id": "byName",
+                "options": "Success"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "green",
+                    "mode": "fixed"
+                  }
+                }
+              ]
             }
           ]
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 2,
         "title": "Total Executions Today",
         "type": "stat",
-        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        },
         "targets": [
           {
             "expr": "sum(increase(n8n_workflow_execution_total[24h])) or vector(0)",
             "legendFormat": "Total",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -69,24 +121,46 @@
             "thresholds": {
               "mode": "absolute",
               "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 100 },
-                { "color": "red", "value": 500 }
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 100
+                },
+                {
+                  "color": "red",
+                  "value": 500
+                }
               ]
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 3,
         "title": "Error Rate (%)",
         "type": "gauge",
-        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
         "targets": [
           {
             "expr": "(sum(rate(n8n_workflow_execution_total{status=\"error\"}[1h])) / sum(rate(n8n_workflow_execution_total[1h]))) * 100 or vector(0)",
             "legendFormat": "Error Rate",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -97,34 +171,64 @@
             "thresholds": {
               "mode": "absolute",
               "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 10 },
-                { "color": "red", "value": 25 }
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 10
+                },
+                {
+                  "color": "red",
+                  "value": 25
+                }
               ]
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 4,
         "title": "Queue Depth",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
         "targets": [
           {
             "expr": "n8n_scaling_mode_queue_jobs_waiting or vector(0)",
             "legendFormat": "Waiting",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           },
           {
             "expr": "n8n_scaling_mode_queue_jobs_active or vector(0)",
             "legendFormat": "Active",
-            "refId": "B"
+            "refId": "B",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           },
           {
             "expr": "n8n_scaling_mode_queue_jobs_failed or vector(0)",
             "legendFormat": "Failed",
-            "refId": "C"
+            "refId": "C",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -135,28 +239,49 @@
               "fillOpacity": 10
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 5,
         "title": "Execution Duration (p50 / p95 / p99)",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
         "targets": [
           {
             "expr": "histogram_quantile(0.50, sum(rate(n8n_workflow_execution_duration_seconds_bucket[5m])) by (le))",
             "legendFormat": "p50",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           },
           {
             "expr": "histogram_quantile(0.95, sum(rate(n8n_workflow_execution_duration_seconds_bucket[5m])) by (le))",
             "legendFormat": "p95",
-            "refId": "B"
+            "refId": "B",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           },
           {
             "expr": "histogram_quantile(0.99, sum(rate(n8n_workflow_execution_duration_seconds_bucket[5m])) by (le))",
             "legendFormat": "p99",
-            "refId": "C"
+            "refId": "C",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -167,44 +292,74 @@
               "fillOpacity": 5
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 6,
         "title": "API Endpoint Latency",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        },
         "targets": [
           {
             "expr": "histogram_quantile(0.95, sum(rate(n8n_http_request_duration_seconds_bucket[5m])) by (le, method))",
             "legendFormat": "{{method}} p95",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
           "defaults": {
             "unit": "s"
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 7,
         "title": "Executions by Workflow",
         "type": "table",
-        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        },
         "targets": [
           {
             "expr": "sum by (workflow_id) (increase(n8n_workflow_execution_total[24h]))",
             "legendFormat": "{{workflow_id}}",
             "refId": "A",
             "format": "table",
-            "instant": true
+            "instant": true,
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
           "defaults": {
             "unit": "short"
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       }
     ]

@@ -4,7 +4,12 @@
     "uid": "parallels-host",
     "title": "Parallels Desktop / VM Host",
     "description": "VM CPU/memory/disk/network, VM state, macOS host metrics",
-    "tags": ["parallels", "vm", "host", "auto-provisioned"],
+    "tags": [
+      "parallels",
+      "vm",
+      "host",
+      "auto-provisioned"
+    ],
     "timezone": "browser",
     "schemaVersion": 39,
     "version": 1,
@@ -16,35 +21,73 @@
     "panels": [
       {
         "id": 1,
-        "title": "VM State",
+        "title": "n8n Up",
         "type": "stat",
-        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        },
         "targets": [
           {
-            "expr": "parallels_vm_state or vector(0)",
+            "expr": "up{job=\"n8n\"} or vector(0)",
             "legendFormat": "State",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
           "defaults": {
             "mappings": [
-              { "type": "value", "options": { "1": { "text": "Running", "color": "green" } } },
-              { "type": "value", "options": { "0": { "text": "Stopped", "color": "red" } } }
+              {
+                "type": "value",
+                "options": {
+                  "1": {
+                    "text": "Running",
+                    "color": "green"
+                  }
+                }
+              },
+              {
+                "type": "value",
+                "options": {
+                  "0": {
+                    "text": "Stopped",
+                    "color": "red"
+                  }
+                }
+              }
             ]
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 2,
-        "title": "VM CPU Load",
+        "title": "Host CPU Usage (%)",
         "type": "gauge",
-        "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        },
         "targets": [
           {
-            "expr": "parallels_vm_cpu_load or vector(0)",
+            "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
             "legendFormat": "CPU Load",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -54,24 +97,46 @@
             "max": 100,
             "thresholds": {
               "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 70 },
-                { "color": "red", "value": 90 }
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "red",
+                  "value": 90
+                }
               ]
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 3,
-        "title": "VM Memory Load",
+        "title": "Host Memory Usage (%)",
         "type": "gauge",
-        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        },
         "targets": [
           {
-            "expr": "parallels_vm_memory_load or vector(0)",
+            "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
             "legendFormat": "Memory Load",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -81,47 +146,86 @@
             "max": 100,
             "thresholds": {
               "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 70 },
-                { "color": "red", "value": 90 }
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "red",
+                  "value": 90
+                }
               ]
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 4,
-        "title": "VM Disk I/O",
+        "title": "Disk I/O",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
         "targets": [
           {
-            "expr": "rate(parallels_vm_disk_read_bytes[5m]) or vector(0)",
+            "expr": "rate(node_disk_read_bytes_total[5m])",
             "legendFormat": "Read",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           },
           {
-            "expr": "rate(parallels_vm_disk_write_bytes[5m]) or vector(0)",
+            "expr": "rate(node_disk_written_bytes_total[5m])",
             "legendFormat": "Write",
-            "refId": "B"
+            "refId": "B",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
           "defaults": {
             "unit": "Bps"
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 5,
-        "title": "Host CPU Usage",
+        "title": "Host CPU (%)",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
         "targets": [
           {
-            "expr": "parallels_host_cpu_percent or vector(0)",
+            "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
             "legendFormat": "Host CPU %",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -131,24 +235,46 @@
             "max": 100,
             "thresholds": {
               "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 70 },
-                { "color": "red", "value": 85 }
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "red",
+                  "value": 85
+                }
               ]
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       },
       {
         "id": 6,
-        "title": "Host Memory Usage",
+        "title": "Host Memory (%)",
         "type": "timeseries",
-        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
         "targets": [
           {
-            "expr": "parallels_host_memory_percent or vector(0)",
+            "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
             "legendFormat": "Host Memory %",
-            "refId": "A"
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
           }
         ],
         "fieldConfig": {
@@ -158,12 +284,25 @@
             "max": 100,
             "thresholds": {
               "steps": [
-                { "color": "green", "value": null },
-                { "color": "yellow", "value": 70 },
-                { "color": "red", "value": 85 }
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "red",
+                  "value": 85
+                }
               ]
             }
           }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
         }
       }
     ]

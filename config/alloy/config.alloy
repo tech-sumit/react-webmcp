@@ -27,7 +27,7 @@ loki.write "grafana_cloud" {
     url = env("GRAFANA_CLOUD_LOKI_URL")
 
     basic_auth {
-      username = env("GRAFANA_CLOUD_USER")
+      username = env("GRAFANA_CLOUD_LOKI_USER")
       password = env("GRAFANA_CLOUD_API_KEY")
     }
   }
@@ -143,12 +143,18 @@ loki.process "docker_logs" {
 // OpenClaw Log Collection (JSONL files)
 // =============================================================================
 
-// OpenClaw gateway logs
+// OpenClaw logs (synced from VM via scripts/sync-openclaw-logs.sh)
 local.file_match "openclaw_logs" {
-  path_targets = [{
-    __path__     = "/home/parallels/.openclaw/logs/openclaw-*.log",
-    service      = "openclaw",
-  }]
+  path_targets = [
+    {
+      __path__     = "/openclaw-logs/gateway.log",
+      service      = "openclaw",
+    },
+    {
+      __path__     = "/openclaw-logs/openclaw-*.log",
+      service      = "openclaw",
+    },
+  ]
 }
 
 loki.source.file "openclaw_logs" {
@@ -174,10 +180,10 @@ loki.process "openclaw_logs" {
   forward_to = [loki.write.grafana_cloud.receiver]
 }
 
-// OpenClaw telemetry JSONL
+// OpenClaw telemetry JSONL (synced from VM via scripts/sync-openclaw-logs.sh)
 local.file_match "openclaw_telemetry" {
   path_targets = [{
-    __path__     = "/home/parallels/.openclaw/logs/telemetry.jsonl",
+    __path__     = "/openclaw-logs/telemetry.jsonl",
     service      = "openclaw_telemetry",
   }]
 }

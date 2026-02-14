@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.2.1 -- Observability Pipeline (2026-02-14)
+
+### Grafana Cloud data pipeline fixed
+- Added separate `GRAFANA_CLOUD_LOKI_USER` (1280189) for Loki auth (was sharing Prometheus user ID)
+- Added `GRAFANA_CLOUD_ADMIN_TOKEN` for dashboard/alert provisioning (service account, Editor role)
+- Fixed all 5 dashboard JSONs: added explicit datasource UIDs (`grafanacloud-prom`, `grafanacloud-logs`)
+- Fixed logs-explorer: queries now use `container_name` label, added template variables
+- Fixed parallels-host: replaced missing `parallels_*` metrics with `node_exporter` equivalents
+- Rebuilt openclaw-agent dashboard with LogQL queries matching actual JSONL log format
+- Fixed alert-rules.yaml: datasource UID `grafanacloud-loki` → `grafanacloud-logs`
+
+### Alert rules provisioned (17 rules)
+- Rewrote provisioner.sh to push individual rules via Grafana provisioning API
+- Provisioner now uses `GRAFANA_CLOUD_ADMIN_TOKEN` (falls back to `GRAFANA_CLOUD_API_KEY`)
+- 8 n8n/infrastructure, 4 OpenClaw, 5 Parallels/host alert rules
+
+### OpenClaw log forwarding
+- New `scripts/sync-openclaw-logs.sh`: rsyncs VM logs (`~/.openclaw/logs/` + `/tmp/openclaw/`) to host
+- Alloy volume mount `./data/openclaw-logs:/openclaw-logs:ro` for host-side log reading
+- Updated Alloy config to tail from `/openclaw-logs/` instead of VM-internal paths
+
 ## v0.2.0 -- Documentation Consolidation & System State (2026-02-14)
 
 ### Documentation consolidated into `docs/`
