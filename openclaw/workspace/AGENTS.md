@@ -47,7 +47,9 @@ n8n workflows are available as MCP tools. You can directly invoke any enabled wo
 - Setup Guide: `docs/setup-guide.md`
 - Operations: `docs/operations.md`
 - Observability: `docs/observability.md`
-- Prompt templates: `prompts/` directory
+- Prompt templates: `docs/prompts/` directory
+- System state: `docs/system-state.md`
+- Changelog: `docs/changelog.md`
 
 ## Key URLs
 

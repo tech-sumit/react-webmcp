@@ -73,10 +73,25 @@ All configuration is in a single `.env` file. See `.env.example` for the complet
 
 ## Documentation
 
-- [Architecture](docs/architecture.md)
-- [Setup Guide](docs/setup-guide.md)
-- [Operations](docs/operations.md)
-- [Observability](docs/observability.md)
+All documentation lives in the [`docs/`](docs/) folder:
+
+- [Architecture](docs/architecture.md) -- system layers, component layout, data flow
+- [Setup Guide](docs/setup-guide.md) -- prerequisites, installation, bootstrap
+- [Operations](docs/operations.md) -- daily ops, Makefile reference, backup, troubleshooting
+- [Observability](docs/observability.md) -- dashboards, alerts, PromQL/LogQL queries
+- [System State](docs/system-state.md) -- live system snapshot, service status, known issues
+- [Changelog](CHANGELOG.md) -- release history
+
+### AI Prompt Templates (`docs/prompts/`)
+
+- [Workflow Design](docs/prompts/workflow-design.md) -- design a new n8n workflow from an idea
+- [Workflow Debug](docs/prompts/workflow-debug.md) -- debug a failing workflow
+- [Resource Plan](docs/prompts/resource-plan.md) -- plan infrastructure for a task
+- [Task Decompose](docs/prompts/task-decompose.md) -- break a goal into actionable steps
+
+### n8n Template Knowledge Base
+
+- [Template Analysis Summary](n8n-templates/knowledge_db/analysis_summary.md) -- 8,258 templates analyzed, 899 node types catalogued
 
 ## Tear Down
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.2.0 -- Documentation Consolidation & System State (2026-02-14)
+
+### Documentation consolidated into `docs/`
+- Moved `SYSTEM_STATE.md` → `docs/system-state.md`
+- Moved `prompts/` → `docs/prompts/` (4 AI prompt templates)
+- Updated `README.md` with complete documentation index
+- Updated `openclaw/workspace/AGENTS.md` references
+
+### System state document
+- New `docs/system-state.md`: comprehensive snapshot of architecture, service status, Docker stack, Parallels VM, MCP integration, n8n workflows, Terraform modules, knowledge database stats, known issues, and operational runbook
+
+### n8n template knowledge database
+- Downloaded 8,258 workflow templates from n8n.io
+- Analyzed 899 unique node types with parameters, connection patterns, and archetypes
+- Generated `n8n-templates/knowledge_db/` (node_knowledge_db.json, connection_patterns.json, workflow_patterns.json, analysis_summary.md)
+
+### Infrastructure changes
+- Docker stack moved to macOS host (from VM) for native performance
+- Parallels VM now runs OpenClaw agent exclusively
+- Fixed n8n execution mode: `queue` → `regular` (no worker service)
+- Fixed node-exporter `rslave` mount for macOS Docker Desktop compatibility
+- Configured OpenClaw gateway with token auth, LAN binding
+- Added n8n and OpenClaw MCP servers to Cursor IDE
+
 ## v0.1.1 -- Simplification Pass (2026-02-13)
 
 Remove dead code, strip unused features, make startup resilient.
