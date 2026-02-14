@@ -354,6 +354,16 @@ vm-status: ## Show VM status
 # Workflow Management (runs locally -- n8n is on the host)
 ###############################################################################
 
+.PHONY: workflow-generate
+workflow-generate: ## AI-generate workflow from idea: make workflow-generate IDEA="Send daily Slack digest"
+	@[ -n "$(IDEA)" ] || (echo "ERROR: IDEA required. Usage: make workflow-generate IDEA=\"Send daily Slack digest\"" && exit 1)
+	python3 scripts/generate-workflow.py --deploy '$(IDEA)'
+
+.PHONY: workflow-generate-preview
+workflow-generate-preview: ## Preview generated workflow without deploying: make workflow-generate-preview IDEA="..."
+	@[ -n "$(IDEA)" ] || (echo "ERROR: IDEA required" && exit 1)
+	python3 scripts/generate-workflow.py '$(IDEA)'
+
 .PHONY: workflow-add
 workflow-add: ## Create new workflow: make workflow-add NAME="my-workflow"
 	@[ -n "$(NAME)" ] || (echo "ERROR: NAME required. Usage: make workflow-add NAME=\"my-workflow\"" && exit 1)

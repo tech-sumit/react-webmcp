@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.3.0 -- AI Workflow Generator (2026-02-14)
+
+### Workflow generator (`scripts/generate-workflow.py`)
+- Natural language → valid n8n workflow JSON using Anthropic Claude
+- Knowledge DB context: top 100 node types, parameters, connection patterns from 8,258 templates
+- Auto-deploy to n8n via REST API (`--deploy` flag)
+- Output to file (`--output`) or stdout
+- Validation: trigger check, duplicate node names, connection integrity, typeVersion coercion
+- `make workflow-generate IDEA="..."` and `make workflow-generate-preview IDEA="..."`
+
+### n8n API key fix
+- Discovered `N8N_API_KEY` env var (hex) doesn't work in n8n v2.7.5 (requires JWT with `audience: public-api`)
+- Generated correct JWT key using n8n's derived secret (every-other-char + SHA-256 of encryption key)
+- Updated `.env.example` with API key format notes
+
 ## v0.2.1 -- Observability Pipeline (2026-02-14)
 
 ### Grafana Cloud data pipeline fixed
