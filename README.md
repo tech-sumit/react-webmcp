@@ -217,9 +217,9 @@ useWebMCPTool({
   description: "Permanently delete the user account",
   inputSchema: { type: "object", properties: { confirm: { type: "boolean" } } },
   annotations: {
-    readOnlyHint: "false",
-    destructiveHint: "true",
-    idempotentHint: "false",
+    readOnlyHint: false,          // browser-native (boolean per WebIDL)
+    destructiveHint: true,        // library extension (not in browser yet)
+    idempotentHint: false,        // library extension (not in browser yet)
   },
   execute: ({ confirm }) => {
     if (!confirm) return "Deletion cancelled.";

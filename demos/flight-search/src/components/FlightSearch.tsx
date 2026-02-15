@@ -135,7 +135,7 @@ export default function FlightSearch({
         "passengers",
       ],
     },
-    annotations: { readOnlyHint: "false" },
+    annotations: { readOnlyHint: false },
     execute: searchExecute,
   });
 

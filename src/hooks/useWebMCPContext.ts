@@ -11,7 +11,7 @@ function toolsFingerprint(tools: WebMCPToolDefinition[]): string {
   return tools
     .map(
       (t) =>
-        `${t.name}::${t.description}::${JSON.stringify(t.inputSchema)}::${JSON.stringify(t.annotations ?? {})}`,
+        `${t.name}::${t.description}::${JSON.stringify(t.inputSchema)}::${JSON.stringify(t.outputSchema ?? {})}::${JSON.stringify(t.annotations ?? {})}`,
     )
     .join("|");
 }
@@ -53,7 +53,6 @@ function toolsFingerprint(tools: WebMCPToolDefinition[]): string {
 export function useWebMCPContext(config: {
   tools: WebMCPToolDefinition[];
 }): void {
-  const prevFingerprintRef = useRef<string>("");
   // Keep a ref to the latest tools so the execute callbacks always close
   // over current handlers without triggering the effect.
   const toolsRef = useRef(config.tools);
@@ -62,12 +61,6 @@ export function useWebMCPContext(config: {
   const fingerprint = toolsFingerprint(config.tools);
 
   useEffect(() => {
-    // Skip re-registration if the tool definitions haven't actually changed.
-    if (fingerprint === prevFingerprintRef.current) {
-      return;
-    }
-    prevFingerprintRef.current = fingerprint;
-
     const mc = getModelContext();
     if (!mc) {
       warnIfUnavailable("useWebMCPContext");

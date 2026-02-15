@@ -38,16 +38,31 @@ export interface JSONSchema {
 
 // ---------------------------------------------------------------------------
 // Tool annotations — metadata hints for agents
+//
+// Per the browser's WebIDL (AnnotationsDict in tool_registration_params.idl),
+// only `readOnlyHint` (boolean) is currently implemented in Chrome.  The
+// additional fields below are **library-level extensions** inspired by the
+// MCP specification; they are silently ignored by the browser but may be
+// useful for higher-level agent frameworks.
 // ---------------------------------------------------------------------------
 
 export interface ToolAnnotations {
-  /** Indicates the tool only reads data and does not modify state. */
-  readOnlyHint?: "true" | "false";
-  /** Indicates the tool performs a destructive/irreversible operation. */
-  destructiveHint?: "true" | "false";
-  /** Indicates the tool is idempotent (safe to retry). */
-  idempotentHint?: "true" | "false";
-  /** Indicates results can be cached. */
+  /** Indicates the tool only reads data and does not modify state (browser-native). */
+  readOnlyHint?: boolean;
+  /**
+   * Indicates the tool performs a destructive/irreversible operation.
+   * **Library extension** — not yet implemented in the browser.
+   */
+  destructiveHint?: boolean;
+  /**
+   * Indicates the tool is idempotent (safe to retry).
+   * **Library extension** — not yet implemented in the browser.
+   */
+  idempotentHint?: boolean;
+  /**
+   * Indicates results can be cached.
+   * **Library extension** — not yet implemented in the browser.
+   */
   cache?: boolean;
 }
 
@@ -78,7 +93,14 @@ export interface WebMCPToolDefinition {
   description: string;
   /** JSON Schema describing the tool's input parameters. */
   inputSchema: JSONSchema | Record<string, never>;
-  /** Optional JSON Schema describing the tool's output. */
+  /**
+   * Optional JSON Schema describing the tool's output.
+   *
+   * **Library extension** — `outputSchema` is NOT part of the browser's
+   * native `ToolRegistrationParams` WebIDL.  It is silently ignored by
+   * `navigator.modelContext.registerTool()` but can be used by higher-level
+   * agent frameworks that inspect tool metadata.
+   */
   outputSchema?: JSONSchema | JSONSchemaProperty;
   /** Optional metadata hints for agents. */
   annotations?: ToolAnnotations;
@@ -97,7 +119,11 @@ export interface UseWebMCPToolConfig {
   description: string;
   /** JSON Schema for the tool's input parameters. */
   inputSchema: JSONSchema | Record<string, never>;
-  /** Optional JSON Schema for the tool's output. */
+  /**
+   * Optional JSON Schema for the tool's output.
+   *
+   * **Library extension** — not part of the browser's native WebIDL.
+   */
   outputSchema?: JSONSchema | JSONSchemaProperty;
   /** Optional metadata hints for agents. */
   annotations?: ToolAnnotations;
@@ -146,17 +172,38 @@ export interface ModelContext {
 }
 
 export interface ModelContextTesting {
+  /**
+   * Returns all registered tools.
+   *
+   * Per the browser's WebIDL, `inputSchema` is always a `DOMString`
+   * (the JSON-stringified schema), not a parsed object.
+   */
   listTools(): Array<{
     name: string;
     description: string;
-    inputSchema: JSONSchema | string;
+    inputSchema: string;
   }>;
+  /**
+   * Execute a tool by name.
+   *
+   * Per the browser's WebIDL, `inputArguments` is a `DOMString`
+   * (a JSON-encoded string of the input object).  Returns the
+   * JSON-stringified result, or `null` when the tool triggers a
+   * cross-document navigation (the result must then be retrieved
+   * via `getCrossDocumentScriptToolResult()`).
+   */
   executeTool(
-    name: string,
-    inputArgs: Record<string, unknown>,
-  ): Promise<unknown>;
+    toolName: string,
+    inputArguments: string,
+  ): Promise<string | null>;
+  /** Register a callback that fires whenever tools are added/removed/changed. */
   registerToolsChangedCallback(callback: () => void): void;
-  getCrossDocumentScriptToolResult(): Promise<unknown>;
+  /**
+   * Retrieve the result of a tool execution that caused a
+   * cross-document navigation.  Used by the Model Context Tool
+   * Inspector when `executeTool()` resolves with `null`.
+   */
+  getCrossDocumentScriptToolResult(): Promise<string>;
 }
 
 declare global {

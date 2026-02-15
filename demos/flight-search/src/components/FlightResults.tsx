@@ -108,7 +108,7 @@ export default function FlightResults({
         },
       },
     },
-    annotations: { readOnlyHint: "true" },
+    annotations: { readOnlyHint: true },
     execute: () => ({ result: flights }),
   });
 
@@ -167,7 +167,7 @@ export default function FlightResults({
         },
       },
     },
-    annotations: { readOnlyHint: "false" },
+    annotations: { readOnlyHint: false },
     execute: setFiltersExecute,
   });
 
@@ -182,7 +182,7 @@ export default function FlightResults({
     name: "resetFilters",
     description: "Resets all filters to their default values.",
     inputSchema: {},
-    annotations: { readOnlyHint: "false" },
+    annotations: { readOnlyHint: false },
     execute: resetFiltersExecute,
   });
 
@@ -225,7 +225,7 @@ export default function FlightResults({
       },
       required: ["origin", "destination", "tripType", "outboundDate", "inboundDate", "passengers"],
     },
-    annotations: { readOnlyHint: "false" },
+    annotations: { readOnlyHint: false },
     execute: (input) => {
       const origin = input.origin as string;
       const destination = input.destination as string;
