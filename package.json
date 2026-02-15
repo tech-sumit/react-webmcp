@@ -1,0 +1,58 @@
+{
+  "name": "react-webmcp",
+  "version": "0.1.0",
+  "description": "React hooks and components for the WebMCP standard — expose structured tools for AI agents on your website",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.8.0"
+  },
+  "keywords": [
+    "webmcp",
+    "react",
+    "ai-agents",
+    "model-context-protocol",
+    "mcp",
+    "navigator-modelContext",
+    "chrome",
+    "web-standard"
+  ],
+  "author": "tech-sumit",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tech-sumit/react-webmcp.git"
+  },
+  "homepage": "https://github.com/tech-sumit/react-webmcp#readme",
+  "bugs": {
+    "url": "https://github.com/tech-sumit/react-webmcp/issues"
+  }
+}
