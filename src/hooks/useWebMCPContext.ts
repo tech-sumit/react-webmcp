@@ -1,6 +1,20 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { WebMCPToolDefinition } from "../types";
 import { getModelContext, warnIfUnavailable } from "../utils/modelContext";
+
+/**
+ * Produces a stable fingerprint string from a tools array so we can detect
+ * meaningful changes without being tricked by new array references.
+ * Compares tool names, descriptions, and serialised input schemas.
+ */
+function toolsFingerprint(tools: WebMCPToolDefinition[]): string {
+  return tools
+    .map(
+      (t) =>
+        `${t.name}::${t.description}::${JSON.stringify(t.inputSchema)}::${JSON.stringify(t.annotations ?? {})}`,
+    )
+    .join("|");
+}
 
 /**
  * Register multiple WebMCP tools at once using `provideContext()`.
@@ -11,6 +25,10 @@ import { getModelContext, warnIfUnavailable } from "../utils/modelContext";
  * completely different set of tools.
  *
  * On unmount, all tools are cleared via `clearContext()`.
+ *
+ * The hook performs a deep comparison of tool definitions (name, description,
+ * inputSchema, annotations) so that passing a new array reference on every
+ * render does **not** cause unnecessary re-registration.
  *
  * @example
  * ```tsx
@@ -35,15 +53,39 @@ import { getModelContext, warnIfUnavailable } from "../utils/modelContext";
 export function useWebMCPContext(config: {
   tools: WebMCPToolDefinition[];
 }): void {
+  const prevFingerprintRef = useRef<string>("");
+  // Keep a ref to the latest tools so the execute callbacks always close
+  // over current handlers without triggering the effect.
+  const toolsRef = useRef(config.tools);
+  toolsRef.current = config.tools;
+
+  const fingerprint = toolsFingerprint(config.tools);
+
   useEffect(() => {
+    // Skip re-registration if the tool definitions haven't actually changed.
+    if (fingerprint === prevFingerprintRef.current) {
+      return;
+    }
+    prevFingerprintRef.current = fingerprint;
+
     const mc = getModelContext();
     if (!mc) {
       warnIfUnavailable("useWebMCPContext");
       return;
     }
 
+    // Wrap execute functions so they always call through the latest ref,
+    // allowing callers to pass inline arrow functions without triggering
+    // the effect.
+    const stableTools = toolsRef.current.map((tool, idx) => ({
+      ...tool,
+      execute: (input: Record<string, unknown>) => {
+        return toolsRef.current[idx].execute(input);
+      },
+    }));
+
     try {
-      mc.provideContext({ tools: config.tools });
+      mc.provideContext({ tools: stableTools });
     } catch (err) {
       console.error("[react-webmcp] Failed to provide context:", err);
     }
@@ -55,5 +97,5 @@ export function useWebMCPContext(config: {
         // Context may have already been cleared
       }
     };
-  }, [config.tools]);
+  }, [fingerprint]);
 }

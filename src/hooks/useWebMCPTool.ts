@@ -3,12 +3,29 @@ import type { UseWebMCPToolConfig } from "../types";
 import { getModelContext, warnIfUnavailable } from "../utils/modelContext";
 
 /**
+ * Produces a stable fingerprint for a single tool definition so we can
+ * detect meaningful changes without being tricked by new object references
+ * created on every render (e.g. inline schema literals).
+ */
+function toolFingerprint(config: UseWebMCPToolConfig): string {
+  return `${config.name}::${config.description}::${JSON.stringify(config.inputSchema)}::${JSON.stringify(config.outputSchema ?? {})}::${JSON.stringify(config.annotations ?? {})}`;
+}
+
+/**
  * Register a single WebMCP tool via the imperative API.
  *
  * The tool is registered with `navigator.modelContext.registerTool()` when
  * the component mounts and unregistered with `unregisterTool()` on unmount.
- * If the tool name changes, the previous tool is unregistered and the new
- * one is registered.
+ * If the tool definition changes (name, description, schemas, or
+ * annotations), the previous tool is unregistered and the new one is
+ * registered.
+ *
+ * Object/array props like `inputSchema` and `annotations` are compared by
+ * value (serialised fingerprint), so passing inline literals on every render
+ * will **not** cause unnecessary re-registration.
+ *
+ * The `execute` callback is always called through a ref, so it does not
+ * need to be memoised by the consumer.
  *
  * @example
  * ```tsx
@@ -35,6 +52,9 @@ export function useWebMCPTool(config: UseWebMCPToolConfig): void {
   const configRef = useRef(config);
   configRef.current = config;
 
+  // Derive a stable fingerprint from the definition values.
+  const fingerprint = toolFingerprint(config);
+
   useEffect(() => {
     const mc = getModelContext();
     if (!mc) {
@@ -51,7 +71,9 @@ export function useWebMCPTool(config: UseWebMCPToolConfig): void {
       }
     }
 
-    // Build the tool definition matching the navigator.modelContext shape
+    // Build the tool definition matching the navigator.modelContext shape.
+    // The execute function is always routed through configRef so callers
+    // never need to memoise their handler.
     const toolDef = {
       name: config.name,
       description: config.description,
@@ -78,5 +100,8 @@ export function useWebMCPTool(config: UseWebMCPToolConfig): void {
       }
       registeredNameRef.current = null;
     };
-  }, [config.name, config.description, config.inputSchema, config.outputSchema, config.annotations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fingerprint
+    // captures the serialised value of all definition fields; config.name
+    // is included so the cleanup closure captures the correct name.
+  }, [fingerprint, config.name]);
 }
