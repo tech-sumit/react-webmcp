@@ -109,7 +109,7 @@ export default function FlightResults({
       },
     },
     annotations: { readOnlyHint: "true" },
-    execute: () => flights,
+    execute: () => ({ result: flights }),
   });
 
   // setFilters tool
