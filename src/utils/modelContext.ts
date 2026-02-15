@@ -36,14 +36,16 @@ export function isWebMCPTestingAvailable(): boolean {
 }
 
 /**
- * Logs a warning when WebMCP is not available. Useful during development
- * to remind developers to enable the Chrome flag.
+ * Logs a warning when WebMCP is not available. Only fires in development
+ * builds so the warning is stripped from production bundles.
  */
 export function warnIfUnavailable(hookName: string): void {
-  if (!isWebMCPAvailable()) {
-    console.warn(
-      `[react-webmcp] ${hookName}: navigator.modelContext is not available. ` +
-        `Ensure you are running Chrome 146+ with the "WebMCP for testing" flag enabled.`,
-    );
+  if (process.env.NODE_ENV !== "production") {
+    if (!isWebMCPAvailable()) {
+      console.warn(
+        `[react-webmcp] ${hookName}: navigator.modelContext is not available. ` +
+          `Ensure you are running Chrome 146+ with the "WebMCP for testing" flag enabled.`,
+      );
+    }
   }
 }

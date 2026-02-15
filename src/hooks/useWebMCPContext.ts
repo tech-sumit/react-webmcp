@@ -70,17 +70,32 @@ export function useWebMCPContext(config: {
     // Wrap execute functions so they always call through the latest ref,
     // allowing callers to pass inline arrow functions without triggering
     // the effect.
-    const stableTools = toolsRef.current.map((tool, idx) => ({
-      ...tool,
-      execute: (input: Record<string, unknown>) => {
-        return toolsRef.current[idx].execute(input);
-      },
-    }));
+    const stableTools = toolsRef.current.map((tool, idx) => {
+      const def: Record<string, unknown> = {
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        execute: (input: Record<string, unknown>) => {
+          return toolsRef.current[idx].execute(input);
+        },
+      };
+      if (tool.annotations) {
+        def.annotations = tool.annotations;
+      }
+      if (tool.outputSchema) {
+        def.outputSchema = tool.outputSchema;
+      }
+      return def;
+    });
 
     try {
-      mc.provideContext({ tools: stableTools });
+      mc.provideContext({
+        tools: stableTools as unknown as Parameters<typeof mc.provideContext>[0]["tools"],
+      });
     } catch (err) {
-      console.error("[react-webmcp] Failed to provide context:", err);
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[react-webmcp] Failed to provide context:", err);
+      }
     }
 
     return () => {

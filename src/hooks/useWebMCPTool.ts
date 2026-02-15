@@ -74,22 +74,31 @@ export function useWebMCPTool(config: UseWebMCPToolConfig): void {
     // Build the tool definition matching the navigator.modelContext shape.
     // The execute function is always routed through configRef so callers
     // never need to memoise their handler.
-    const toolDef = {
+    const toolDef: Record<string, unknown> = {
       name: config.name,
       description: config.description,
       inputSchema: config.inputSchema,
-      ...(config.outputSchema ? { outputSchema: config.outputSchema } : {}),
-      ...(config.annotations ? { annotations: config.annotations } : {}),
       execute: (input: Record<string, unknown>) => {
         return configRef.current.execute(input);
       },
     };
+    if (config.outputSchema) {
+      toolDef.outputSchema = config.outputSchema;
+    }
+    if (config.annotations) {
+      toolDef.annotations = config.annotations;
+    }
 
     try {
-      mc.registerTool(toolDef);
+      mc.registerTool(toolDef as unknown as Parameters<typeof mc.registerTool>[0]);
       registeredNameRef.current = config.name;
     } catch (err) {
-      console.error(`[react-webmcp] Failed to register tool "${config.name}":`, err);
+      if (process.env.NODE_ENV !== "production") {
+        console.error(
+          `[react-webmcp] Failed to register tool "${config.name}":`,
+          err,
+        );
+      }
     }
 
     return () => {

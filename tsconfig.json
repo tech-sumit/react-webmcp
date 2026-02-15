@@ -18,5 +18,5 @@
     "isolatedModules": true
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "demos"]
+  "exclude": ["node_modules", "dist", "demos", "src/__tests__"]
 }
