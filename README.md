@@ -128,8 +128,8 @@ Registers a single tool with `navigator.modelContext.registerTool()` on mount an
 | `name` | `string` | Unique tool identifier |
 | `description` | `string` | Human-readable description for agents |
 | `inputSchema` | `JSONSchema` | JSON Schema for input parameters |
-| `outputSchema` | `JSONSchema` | *(optional)* JSON Schema for output |
-| `annotations` | `ToolAnnotations` | *(optional)* Hints like `readOnlyHint` |
+| `outputSchema` | `JSONSchema` | *(optional, library extension)* JSON Schema for output — not in browser WebIDL |
+| `annotations` | `ToolAnnotations` | *(optional)* Hints; only `readOnlyHint` (`boolean`) is browser-native |
 | `execute` | `(input) => any` | Handler function called on invocation |
 
 #### `useWebMCPContext(config)`
@@ -209,7 +209,7 @@ Returns the `navigator.modelContext` object or `null`.
 
 ## Tool Annotations
 
-Annotations provide metadata hints to AI agents:
+Annotations provide metadata hints to AI agents. Per the browser's WebIDL (`AnnotationsDict`), only `readOnlyHint` (`boolean`) is currently implemented in Chrome. The other fields are library-level extensions that may be used by higher-level agent frameworks:
 
 ```tsx
 useWebMCPTool({
