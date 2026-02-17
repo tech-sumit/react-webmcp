@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.tanstack/
+*.local
+test-dashboard*.mjs
+test-screenshots*/
