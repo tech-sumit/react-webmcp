@@ -13,11 +13,21 @@ export interface ToolSourceConfig {
 }
 
 /**
+ * A single content block returned by a tool call.
+ * Mirrors MCP's TextContent and ImageContent types so the MCP server
+ * can pass results through directly.
+ */
+export type ToolCallResultContent =
+  | { type: "text"; text: string }
+  | { type: "image"; data: string; mimeType: string };
+
+/**
  * Abstraction for a source of WebMCP tools.
  *
  * Implemented by:
  * - `CdpToolSource` in @tech-sumit/webmcp-cdp (direct CDP via chrome-remote-interface)
  * - `ExtensionToolSource` in @tech-sumit/ai-inspector-server (WebSocket bridge to extension)
+ * - `PlaywrightBrowserSource` in @tech-sumit/ai-inspector-server (browser automation via Playwright)
  */
 export interface ToolSource {
   /** Connect to the tool source. */
@@ -34,9 +44,9 @@ export interface ToolSource {
    *
    * @param name - The tool name
    * @param inputArguments - JSON-encoded input arguments (DOMString per WebMCP spec)
-   * @returns JSON-encoded result, or null if a cross-document navigation occurred
+   * @returns Array of content blocks (text, image, etc.)
    */
-  callTool(name: string, inputArguments: string): Promise<string | null>;
+  callTool(name: string, inputArguments: string): Promise<ToolCallResultContent[]>;
 
   /** Register a callback for when the tool list changes. */
   onToolsChanged(cb: (tools: DiscoveredTool[]) => void): void;

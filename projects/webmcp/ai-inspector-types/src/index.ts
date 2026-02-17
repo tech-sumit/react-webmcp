@@ -13,6 +13,7 @@ export type {
 } from "./tool.js";
 
 export type {
+  ToolCallResultContent,
   ToolSourceConfig,
   ToolSource,
 } from "./tool-source.js";

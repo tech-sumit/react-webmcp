@@ -1,0 +1,221 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f5f7fa;
+  color: #1a1a2e;
+}
+
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.app-main {
+  margin-top: 1rem;
+}
+
+/* Search Form */
+.search-form-container {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.search-form-container h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.subtitle code {
+  background: #e8f0fe;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.flight-search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.form-group input,
+.form-group select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.radio-group {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.radio-group label {
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.search-flights-button {
+  background: #1a73e8;
+  color: #fff;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.search-flights-button:hover {
+  background: #1557b0;
+}
+
+/* Header */
+.header {
+  background: #1a73e8;
+  color: #fff;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Results */
+.results-container {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.reset-btn {
+  background: none;
+  border: 1px solid #d0d5dd;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.reset-btn:hover {
+  background: #f5f7fa;
+}
+
+.flight-count {
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.flight-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.flight-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #e8ecf0;
+  border-radius: 8px;
+}
+
+.flight-airline {
+  font-weight: 600;
+}
+
+.flight-route {
+  color: #444;
+}
+
+.flight-times {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.flight-meta {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.flight-price {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #1a73e8;
+}
+
+/* No results */
+.no-results {
+  text-align: center;
+  padding: 3rem 1rem;
+  background: #fff;
+  border-radius: 12px;
+}
+
+.no-results h2 {
+  margin-bottom: 1rem;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: #323232;
+  color: #fff;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

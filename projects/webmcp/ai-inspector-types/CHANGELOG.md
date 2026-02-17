@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 (2026-02-17)
+
+### Features
+
+- **`ToolCallResultContent` type**: New union type for rich tool call results (`text` and `image` content blocks), mirroring MCP's `TextContent` and `ImageContent` types
+
+### Breaking changes
+
+- **`ToolSource.callTool()` return type**: Changed from `Promise<string | null>` to `Promise<ToolCallResultContent[]>` to support rich responses (text, images) from tool sources like Playwright browser automation
+- Updated `ToolSource` interface docs to list `PlaywrightBrowserSource` as a new implementation
+
 ## 0.1.0 (2026-02-17)
 
 ### Features
