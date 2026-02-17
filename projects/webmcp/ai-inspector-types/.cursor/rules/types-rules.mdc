@@ -1,0 +1,14 @@
+---
+description: Rules for ai-inspector-types package
+globs: ["**/*.ts"]
+---
+
+# ai-inspector-types Rules
+
+- This is a TYPES-ONLY package. NEVER add runtime dependencies.
+- All exports MUST use `export type` or `export interface`.
+- Types align with the WebMCP specification (navigator.modelContext / modelContextTesting).
+- DiscoveredTool.inputSchema is always a DOMString (JSON-stringified string), NOT a parsed object.
+- ToolSource.callTool() takes string inputArguments and returns Promise<string | null>.
+- InspectorEvent is a discriminated union — always switch on the `type` field.
+- Protocol messages are directional — name types by source->destination direction.
