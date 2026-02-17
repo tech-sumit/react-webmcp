@@ -33,6 +33,7 @@
     "test:watch": "vitest",
     "format": "prettier --write 'src/**/*.ts'",
     "start": "node dist/cli.js start",
+    "start:stdio": "node dist/cli.js",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {

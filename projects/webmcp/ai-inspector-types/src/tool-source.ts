@@ -10,6 +10,14 @@ export interface ToolSourceConfig {
   port?: number;
   /** WebSocket port for extension bridge */
   wsPort?: number;
+  /** Launch a new browser instead of connecting via CDP */
+  launch?: boolean;
+  /** Browser channel for launch mode: 'chrome', 'chrome-beta', 'chrome-canary', 'msedge', etc. */
+  channel?: string;
+  /** Run launched browser in headless mode */
+  headless?: boolean;
+  /** Initial URL to navigate to after launching */
+  url?: string;
 }
 
 /**
