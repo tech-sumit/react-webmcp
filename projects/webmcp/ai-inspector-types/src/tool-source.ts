@@ -16,8 +16,8 @@ export interface ToolSourceConfig {
  * Abstraction for a source of WebMCP tools.
  *
  * Implemented by:
- * - `CdpToolSource` in @anthropic/webmcp-cdp (direct CDP via chrome-remote-interface)
- * - `ExtensionToolSource` in @anthropic/ai-inspector-server (WebSocket bridge to extension)
+ * - `CdpToolSource` in @tech-sumit/webmcp-cdp (direct CDP via chrome-remote-interface)
+ * - `ExtensionToolSource` in @tech-sumit/ai-inspector-server (WebSocket bridge to extension)
  */
 export interface ToolSource {
   /** Connect to the tool source. */

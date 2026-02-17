@@ -1,5 +1,5 @@
 {
-  "name": "@anthropic/ai-inspector-types",
+  "name": "@tech-sumit/ai-inspector-types",
   "version": "0.1.0",
   "description": "Shared TypeScript types and protocol schemas for the AI Inspector ecosystem",
   "type": "module",

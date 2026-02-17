@@ -1,17 +1,17 @@
-# @anthropic/ai-inspector-types
+# @tech-sumit/ai-inspector-types
 
 Shared TypeScript types and protocol schemas for the AI Inspector ecosystem.
 
 ## Packages that depend on this
 
-- `@anthropic/webmcp-cdp` — CDP client library
+- `@tech-sumit/webmcp-cdp` — CDP client library
 - `ai-inspector-extension` — Chrome DevTools extension
-- `@anthropic/ai-inspector-server` — MCP server + CLI
+- `@tech-sumit/ai-inspector-server` — MCP server + CLI
 
 ## Installation
 
 ```bash
-pnpm add @anthropic/ai-inspector-types
+pnpm add @tech-sumit/ai-inspector-types
 ```
 
 ## Exports
