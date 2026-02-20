@@ -70,7 +70,7 @@ Update header comment from "Runs inside the Parallels Ubuntu 24.04 VM" to "Runs 
 `**up` target** -- new dependency chain:
 `check-env sudo-cache ensure-prldevops tf-init tf-apply docker-up vm-create vm-ports vm-provision-openclaw health`
 
-- `**docker-up**` (new): `docker compose up -d` on the host, wait for Vault healthy, run `vault-seed`
+- `**docker-up`** (new): `docker compose up -d` on the host, wait for Vault healthy, run `vault-seed`
 - `**vm-create**`: Same as now (clone template, SSH keys, sudo, password)
 - `**vm-ports**`: Only forward SSH (2222) and OpenClaw (18789). Remove n8n/Vault port forwards (they're on the host now)
 - `**vm-provision-openclaw**` (replaces `vm-provision`): Only install Node.js + OpenClaw + basic tools (curl, jq). No Docker, no docker-compose-plugin, no full apt upgrade. Much faster.

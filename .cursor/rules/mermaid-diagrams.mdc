@@ -1,0 +1,45 @@
+---
+description: Use Mermaid diagrams in Markdown files instead of ASCII art
+globs: "**/*.md"
+alwaysApply: false
+---
+
+# Use Mermaid Diagrams in Markdown
+
+When creating or updating documentation or Markdown files, **always use Mermaid diagram syntax** for any visual diagrams, flowcharts, architecture diagrams, sequence diagrams, or state machines.
+
+## Rules
+
+- Use fenced `mermaid` code blocks for all diagrams
+- Do NOT use ASCII art boxes, arrows, or table-based diagrams
+- Choose the appropriate Mermaid diagram type for the content:
+  - `flowchart` / `graph` for pipelines, data flows, architecture
+  - `sequenceDiagram` for API call sequences, request/response flows
+  - `stateDiagram-v2` for state machines, status transitions
+  - `erDiagram` for database schemas
+  - `gantt` for timelines, project phases
+
+## Examples
+
+```markdown
+<!-- ❌ BAD: ASCII art diagram -->
+┌──────────┐    ┌──────────┐    ┌──────────┐
+│  Input   │───▶│ Process  │───▶│  Output  │
+└──────────┘    └──────────┘    └──────────┘
+
+<!-- ✅ GOOD: Mermaid diagram -->
+```mermaid
+flowchart LR
+    A[Input] --> B[Process] --> C[Output]
+```
+
+```markdown
+<!-- ✅ GOOD: State diagram -->
+```mermaid
+stateDiagram-v2
+    [*] --> intake
+    intake --> enriching
+    enriching --> generating
+    generating --> live
+    generating --> error
+```
