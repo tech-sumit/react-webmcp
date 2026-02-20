@@ -4,17 +4,33 @@ React hooks and components for the [WebMCP](https://github.com/webmachinelearnin
 
 WebMCP is a W3C-proposed web standard (Chrome 146+) that allows websites to register tools that AI agents can discover and invoke directly, replacing unreliable screen-scraping with robust, schema-driven interaction.
 
-**react-webmcp** provides idiomatic React primitives for both the Imperative and Declarative WebMCP APIs.
+**react-webmcp** provides idiomatic React primitives for three API styles: **Imperative** (hooks), **Declarative** (HTML-attributed components), and **Adapter** (framework-agnostic wrappers for Material UI, Ant Design, and custom components).
 
 ## Features
+
+### Imperative API
 
 - **`useWebMCPTool`** — Register a single tool with automatic lifecycle management (mount/unmount)
 - **`useWebMCPContext`** — Register multiple tools at once via `provideContext()`
 - **`useToolEvent`** — Listen for `toolactivated` and `toolcancel` browser events
+
+### Declarative API
+
 - **`<WebMCPForm>`** — Declarative form component with `toolname` / `tooldescription` attributes
 - **`<WebMCPInput>`, `<WebMCPSelect>`, `<WebMCPTextarea>`** — Form controls with `toolparam*` attributes
+
+### Adapter API (third-party UI libraries)
+
+- **`<WebMCP.Tool>`** — Wrapper that auto-detects fields from children, merges with `fields` prop, and registers via context
+- **`<WebMCP.Field>`** — Zero-UI wrapper for custom components that can't be auto-detected
+- **`useRegisterField`** — Hook to register field metadata from inside any component
+- **`extractFields`**, **`buildInputSchema`**, **`validateSchema`** — Utilities for schema generation and dev-mode validation
+
+### General
+
 - **`<WebMCPProvider>`** — Context provider for availability detection
 - Full TypeScript support with `navigator.modelContext` type augmentation
+- SSR-safe tool registration and schema collection
 - Works with the [Model Context Tool Inspector](https://chromewebstore.google.com/detail/model-context-tool-inspec/gbpdfapgefenggkahomfgkhfehlcenpd) extension
 
 ## Requirements
@@ -115,6 +131,49 @@ function ReservationForm() {
 }
 ```
 
+### Adapter API (WebMCP.Tool + useRegisterField)
+
+Integrate with third-party UI libraries (Material UI, Ant Design) or custom components. The Adapter API auto-detects fields from children, or lets you declare them explicitly:
+
+```tsx
+import { WebMCP, WebMCPProvider } from "react-webmcp";
+
+// Auto-detection: fields inferred from input/select props
+<WebMCP.Tool
+  name="submit_contact"
+  description="Submit a contact form"
+  onExecute={(input) => console.log(input)}
+>
+  <input name="email" type="email" required />
+  <select name="subject">
+    <option value="general">General</option>
+    <option value="support">Support</option>
+  </select>
+</WebMCP.Tool>
+
+// Explicit registration: for custom components without standard props
+<WebMCP.Tool name="rate_feedback" description="Rate our product" onExecute={handler}>
+  <WebMCP.Field name="rating" type="number" required min={1} max={5}>
+    <StarRating value={rating} onChange={setRating} />
+  </WebMCP.Field>
+</WebMCP.Tool>
+```
+
+For components you control, use `useRegisterField` inside a wrapper:
+
+```tsx
+function RatingField({ value, onChange }) {
+  useRegisterField({
+    name: "rating",
+    type: "number",
+    required: true,
+    min: 1,
+    max: 5,
+  });
+  return <StarRating value={value} onChange={onChange} />;
+}
+```
+
 ## API Reference
 
 ### Hooks
@@ -193,6 +252,66 @@ All standard HTML attributes are also supported.
 
 Context provider that makes WebMCP availability info accessible via `useWebMCPStatus()`.
 
+### Adapter API
+
+#### `<WebMCP.Tool>` / `<WebMCPTool>`
+
+Wrapper component that collects field definitions from children (auto-detection), the `fields` prop, and context-registered fields via `useRegisterField`, then registers the tool with the generated JSON Schema.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `name` | `string` | Unique tool identifier |
+| `description` | `string` | Human-readable description for agents |
+| `onExecute` | `(input) => any` | Handler called on invocation |
+| `fields` | `Record<string, Partial<FieldDefinition>>` | *(optional)* Override or enrich field metadata |
+| `strict` | `boolean` | *(optional)* Throw on schema validation errors in dev (default: `false`) |
+| `autoSubmit` | `boolean` | *(optional)* Submit when invoked by agent |
+| `annotations` | `ToolAnnotations` | *(optional)* Tool hints |
+| `onToolActivated` | `(name) => void` | *(optional)* Activation callback |
+| `onToolCancel` | `(name) => void` | *(optional)* Cancel callback |
+
+#### `<WebMCP.Field>` / `<WebMCPField>`
+
+Zero-UI wrapper that registers a field via context. Renders a Fragment. Use when child components don't expose `name` or other form props.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `name` | `string` | Field name |
+| `type` | `string` | *(optional)* HTML input type, default `"string"` |
+| `required` | `boolean` | *(optional)* Whether required |
+| `description` | `string` | *(optional)* Description for agents |
+| `min`, `max` | `number` | *(optional)* Numeric constraints |
+| `minLength`, `maxLength` | `number` | *(optional)* String length constraints |
+| `pattern` | `string` | *(optional)* Regex for string validation |
+| `enumValues` | `Array` of string/number/boolean | *(optional)* Allowed values |
+| `oneOf` | `{ value, label }[]` | *(optional)* Labelled options (auto-detected from `<option>` children if omitted) |
+
+#### `useRegisterField(field)`
+
+Registers field metadata with the nearest `WebMCP.Tool` context. Call from inside custom components that don't render standard form elements. SSR-safe.
+
+```tsx
+useRegisterField({
+  name: "rating",
+  type: "number",
+  required: true,
+  min: 1,
+  max: 5,
+  description: "Star rating from 1 to 5",
+});
+```
+
+#### `FieldDefinition`
+
+Type for field metadata. See `src/adapters/types.ts` for the full interface.
+
+#### Utilities (schema building)
+
+- **`extractFields(children)`** — Traverse React children and extract `FieldDefinition[]` from `name`, `type`, `required`, etc.
+- **`extractOptions(children)`** — Extract `{ value, label }[]` from `<option>` or `MenuItem`-like children.
+- **`buildInputSchema(fields)`** — Convert `FieldDefinition[]` to JSON Schema.
+- **`validateSchema(fields, { strict? })`** — Dev-mode validation; warns (or throws if `strict`) on conflicts.
+
 ### Utilities
 
 #### `isWebMCPAvailable()`
@@ -231,22 +350,17 @@ useWebMCPTool({
 
 ## Demos
 
-### Flight Search (Imperative API)
+Four demo apps showcase the different API styles. See [demos/README.md](./demos/README.md) for a detailed comparison and quick-start guide.
 
-Replicates Google's [react-flightsearch](https://googlechromelabs.github.io/webmcp-tools/demos/react-flightsearch/) demo using `useWebMCPTool` hooks. Exposes 4 tools: `searchFlights`, `listFlights`, `setFilters`, `resetFilters`.
-
-```bash
-cd demos/flight-search
-npm install
-npm run dev
-```
-
-### French Bistro (Declarative API)
-
-Replicates Google's [french-bistro](https://googlechromelabs.github.io/webmcp-tools/demos/french-bistro/) demo using `<WebMCPForm>` and `<WebMCPInput>` components. Exposes the `book_table_le_petit_bistro` tool.
+| Demo | API | Description |
+|------|-----|-------------|
+| [french-bistro](./demos/french-bistro) | Declarative | Restaurant reservation form — `WebMCPForm`, `WebMCPInput`, `WebMCPSelect`, `WebMCPTextarea` |
+| [flight-search](./demos/flight-search) | Imperative | Flight search with `useWebMCPTool` — `searchFlights`, `listFlights`, `setFilters`, `resetFilters` |
+| [contact-form](./demos/contact-form) | All four | Same form implemented four ways side-by-side for comparison |
+| [custom-components](./demos/custom-components) | Adapter | Custom UI (`StarRating`, `TagInput`, `ColorPicker`) with `useRegisterField` and `WebMCP.Field` |
 
 ```bash
-cd demos/french-bistro
+cd demos/<demo-name>
 npm install
 npm run dev
 ```
@@ -264,8 +378,10 @@ npm run dev
 ```
 Your React App
     │
-    ├─ useWebMCPTool()  ──► navigator.modelContext.registerTool()
-    ├─ <WebMCPForm>     ──► <form toolname="..." tooldescription="...">
+    ├─ useWebMCPTool()   ──► navigator.modelContext.registerTool()
+    ├─ <WebMCPForm>      ──► <form toolname="..." tooldescription="...">
+    ├─ <WebMCP.Tool>     ──► Collects fields (children + fields + useRegisterField)
+    │                         → buildInputSchema() → registerTool()
     │
     └─ Browser (Chrome 146+)
          │
@@ -285,6 +401,9 @@ import type {
   JSONSchema,
   ToolAnnotations,
   WebMCPFormSubmitEvent,
+  WebMCPToolProps,
+  WebMCPFieldProps,
+  FieldDefinition,
   ModelContext,
 } from "react-webmcp";
 ```
