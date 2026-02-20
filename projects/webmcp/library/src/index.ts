@@ -40,3 +40,11 @@ export {
   isWebMCPAvailable,
   isWebMCPTestingAvailable,
 } from "./utils/modelContext";
+
+// Adapter API (third-party component library support)
+export {
+  WebMCP, WebMCPTool, WebMCPField,
+  useRegisterField, useSchemaCollector,
+  extractFields, extractOptions, buildInputSchema, validateSchema,
+} from "./adapters";
+export type { WebMCPToolProps, WebMCPFieldProps, FieldDefinition } from "./adapters";
