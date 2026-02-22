@@ -185,20 +185,18 @@ services:
 
   # ===========================================================================
   # Cloudflare Tunnel
+  # network_mode: host so localhost:18789 (Parallels NAT → VM OpenClaw)
+  # and localhost:5678 (n8n published port) are reachable from cloudflared
   # ===========================================================================
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: n8n-cloudflared
     restart: unless-stopped
+    network_mode: host
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
       - TZ=${TZ:-UTC}
     command: tunnel run
-    depends_on:
-      n8n:
-        condition: service_healthy
-    networks:
-      - n8n-net
 
   # ===========================================================================
   # Redis (Queue Mode)

@@ -30,6 +30,9 @@ export TF_VAR_parallels_password="${PRLDEVOPS_ROOT_PASSWORD:-}"
 export TF_VAR_cloudflare_api_token="${CLOUDFLARE_API_TOKEN:-}"
 export TF_VAR_cloudflare_account_id="${CLOUDFLARE_ACCOUNT_ID:-}"
 export TF_VAR_cloudflare_domain="${CLOUDFLARE_DOMAIN:-}"
+export TF_VAR_openclaw_subdomain="${OPENCLAW_SUBDOMAIN:-bot-0}"
+export TF_VAR_cloudflare_access_email="${CLOUDFLARE_ACCESS_EMAIL:-}"
+export TF_VAR_vm_ip="${VM_IP:-10.211.55.10}"
 
 # AWS (optional)
 export TF_VAR_aws_access_key="${AWS_ACCESS_KEY_ID:-}"

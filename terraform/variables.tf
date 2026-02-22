@@ -20,6 +20,18 @@ variable "parallels_password" {
   sensitive   = true
 }
 
+variable "vm_user" {
+  description = "SSH user for the Parallels VM (used by Ansible provisioner)"
+  type        = string
+  default     = "parallels"
+}
+
+variable "vm_ssh_port" {
+  description = "NAT-forwarded SSH port for the Parallels VM (used by Ansible provisioner)"
+  type        = string
+  default     = "2222"
+}
+
 # =============================================================================
 # Cloudflare
 # =============================================================================
@@ -39,6 +51,24 @@ variable "cloudflare_account_id" {
 
 variable "cloudflare_domain" {
   description = "Your domain (e.g., yourdomain.com)"
+  type        = string
+  default     = ""
+}
+
+variable "openclaw_subdomain" {
+  description = "Subdomain for OpenClaw gateway (e.g., 'bot-0' for bot-0.panditai.org)"
+  type        = string
+  default     = "bot-0"
+}
+
+variable "vm_ip" {
+  description = "IP address of the Parallels VM on the shared network (VM_IP in .env)"
+  type        = string
+  default     = "10.211.55.10"
+}
+
+variable "cloudflare_access_email" {
+  description = "Owner email for Cloudflare Access on OpenClaw gateway"
   type        = string
   default     = ""
 }

@@ -59,15 +59,29 @@ prometheus.scrape "cadvisor" {
   job_name        = "cadvisor"
 }
 
-// Node Exporter VM system metrics
+// Node Exporter -- macOS host system metrics (Docker container)
 prometheus.scrape "node_exporter" {
   targets = [{
     __address__ = "node-exporter:9100",
+    instance    = "macos-host",
   }]
   forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
   metrics_path    = "/metrics"
   scrape_interval = env("ALLOY_SCRAPE_INTERVAL")
   job_name        = "node-exporter"
+}
+
+// Node Exporter -- Ubuntu VM metrics (prometheus-node-exporter in Parallels VM)
+// Port 9100 is NAT-forwarded from HOST_IP:9100 -> VM:9100 (via vm-ports Makefile target)
+prometheus.scrape "vm_node_exporter" {
+  targets = [{
+    __address__ = env("HOST_IP") + ":9100",
+    instance    = "parallels-vm",
+  }]
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  metrics_path    = "/metrics"
+  scrape_interval = env("ALLOY_SCRAPE_INTERVAL")
+  job_name        = "vm-node-exporter"
 }
 
 // Parallels DevOps API (macOS host metrics)

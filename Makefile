@@ -126,7 +126,7 @@ generate-secrets: ## Generate random values for internal secrets
 ###############################################################################
 
 .PHONY: up
-up: check-env sudo-cache ensure-prldevops tf-init tf-apply docker-up vm-create vm-ports vm-provision-openclaw vm-setup-openclaw health ## Full bootstrap: start stack on host + OpenClaw in VM
+up: check-env sudo-cache ensure-prldevops tf-init docker-up vm-create vm-ports tf-apply vm-setup-openclaw health ## Full bootstrap: start stack on host + OpenClaw in VM (Ansible provisions VM during tf-apply)
 	@echo ""
 	@echo "=== System is UP ==="
 	@echo "n8n:      http://localhost:$(N8N_PORT)"
@@ -137,7 +137,7 @@ up: check-env sudo-cache ensure-prldevops tf-init tf-apply docker-up vm-create v
 .PHONY: docker-up
 docker-up: ## Start Docker stack on host + seed Vault
 	@echo "=== Starting Docker stack on host ==="
-	@mkdir -p data/n8n data/postgres data/vault data/redis
+	@mkdir -p data/n8n data/postgres data/vault data/redis data/openclaw-logs
 	docker compose up -d
 	@echo "Waiting for Vault to be ready..."
 	@for i in $$(seq 1 30); do \
@@ -146,6 +146,7 @@ docker-up: ## Start Docker stack on host + seed Vault
 	@echo "Vault ready. Seeding secrets..."
 	@$(MAKE) vault-seed
 	@echo "Docker stack running."
+	@$(MAKE) sync-logs
 
 .PHONY: start
 start: ## Start Docker stack + VM (no Terraform)
@@ -154,6 +155,7 @@ start: ## Start Docker stack + VM (no Terraform)
 	@echo "Starting VM..."
 	prlctl start "$(VM_NAME)" 2>/dev/null || true
 	@echo "Started."
+	@$(MAKE) sync-logs
 
 .PHONY: stop
 stop: ## Stop Docker stack + suspend VM
@@ -274,7 +276,7 @@ vm-create: ## Create VM by cloning template (or skip if already exists)
 	@echo "VM '$(VM_NAME)' is running."
 
 .PHONY: vm-ports
-vm-ports: ## Set up NAT port forwarding (SSH + OpenClaw only)
+vm-ports: ## Set up NAT port forwarding (SSH + OpenClaw + node-exporter)
 	@echo "=== Setting up port forwarding ==="
 	@VM_IP=$$($(VM_IP_CMD)); \
 	if [ -z "$$VM_IP" ]; then \
@@ -290,7 +292,11 @@ vm-ports: ## Set up NAT port forwarding (SSH + OpenClaw only)
 	prlsrvctl net set Shared --nat-tcp-add n8n-openclaw,$(OPENCLAW_PORT),$$VM_IP,$(OPENCLAW_PORT) 2>/dev/null || \
 		(prlsrvctl net set Shared --nat-tcp-del n8n-openclaw 2>/dev/null; \
 		 prlsrvctl net set Shared --nat-tcp-add n8n-openclaw,$(OPENCLAW_PORT),$$VM_IP,$(OPENCLAW_PORT)); \
-	echo "Port forwarding configured (SSH + OpenClaw)."
+	echo "  Forwarding localhost:9100 -> $$VM_IP:9100 (node-exporter)"; \
+	prlsrvctl net set Shared --nat-tcp-add n8n-node-exporter,9100,$$VM_IP,9100 2>/dev/null || \
+		(prlsrvctl net set Shared --nat-tcp-del n8n-node-exporter 2>/dev/null; \
+		 prlsrvctl net set Shared --nat-tcp-add n8n-node-exporter,9100,$$VM_IP,9100); \
+	echo "Port forwarding configured (SSH + OpenClaw + node-exporter)."
 
 .PHONY: vm-provision-openclaw
 vm-provision-openclaw: ## Provision VM: install only Node.js + OpenClaw + basic tools
@@ -313,13 +319,14 @@ vm-setup-openclaw: ## Configure and start OpenClaw in the VM
 	$(VM_SCP) scripts/openclaw-setup.sh $(VM_USER)@localhost:/tmp/openclaw-setup.sh
 	@if [ -d openclaw/workspace ]; then \
 		echo "Syncing OpenClaw workspace files to VM..."; \
-		$(VM_SSH) "mkdir -p /home/$(VM_USER)/.openclaw/workspace/skills /home/$(VM_USER)/.openclaw/logs"; \
+		$(VM_SSH) "sudo mkdir -p /home/openclaw/.openclaw/workspace/skills /home/openclaw/.openclaw/logs && sudo chown -R openclaw:openclaw /home/openclaw/.openclaw"; \
 		rsync -avz --progress \
 			-e "ssh -o StrictHostKeyChecking=no -p $(VM_SSH_PORT)" \
-			openclaw/workspace/ $(VM_USER)@localhost:/home/$(VM_USER)/.openclaw/workspace/; \
+			openclaw/workspace/ $(VM_USER)@localhost:/tmp/openclaw-workspace/; \
+		$(VM_SSH) "sudo cp -r /tmp/openclaw-workspace/. /home/openclaw/.openclaw/workspace/ && sudo chown -R openclaw:openclaw /home/openclaw/.openclaw/workspace"; \
 	fi
-	@echo "Running OpenClaw setup in VM..."
-	$(VM_SSH) "HOST_IP=$(HOST_IP) N8N_PORT=$(N8N_PORT) OPENCLAW_PORT=$(OPENCLAW_PORT) OPENCLAW_API_KEY=$(OPENCLAW_API_KEY) VAULT_ROOT_TOKEN=$(VAULT_ROOT_TOKEN) VAULT_PORT=$(VAULT_PORT) bash /tmp/openclaw-setup.sh"
+	@echo "Running OpenClaw setup in VM (as openclaw user)..."
+	$(VM_SSH) "sudo -H -u openclaw env HOST_IP=$(HOST_IP) N8N_PORT=$(N8N_PORT) OPENCLAW_PORT=$(OPENCLAW_PORT) OPENCLAW_API_KEY=$(OPENCLAW_API_KEY) VAULT_ROOT_TOKEN=$(VAULT_ROOT_TOKEN) VAULT_PORT=$(VAULT_PORT) N8N_API_KEY=$(N8N_API_KEY) TELEGRAM_BOT_TOKEN=$(TELEGRAM_BOT_TOKEN) PATH=/home/openclaw/.local/bin:/home/openclaw/.local/share/pnpm:$$PATH HOME=/home/openclaw bash /tmp/openclaw-setup.sh"
 	@echo "OpenClaw setup complete."
 
 .PHONY: vm-destroy
@@ -582,6 +589,41 @@ agent: ## Send a message to OpenClaw: make agent MSG="What workflows are running
 .PHONY: agent-status
 agent-status: ## Check OpenClaw status in VM
 	$(VM_SSH) "openclaw status" 2>/dev/null || echo "OpenClaw unreachable in VM"
+
+.PHONY: sync-logs
+sync-logs: ## Start OpenClaw log sync from VM in background (feeds Grafana Alloy)
+	@mkdir -p data/openclaw-logs
+	@# Kill any existing sync process
+	@pkill -f "sync-openclaw-logs.sh" 2>/dev/null || true
+	@sleep 1
+	@echo "Starting OpenClaw log sync in background..."
+	@nohup bash scripts/sync-openclaw-logs.sh > /tmp/sync-openclaw-logs.log 2>&1 &
+	@echo "  Log sync started (PID: $$!). Logs: /tmp/sync-openclaw-logs.log"
+
+.PHONY: sync-logs-stop
+sync-logs-stop: ## Stop the background OpenClaw log sync
+	@pkill -f "sync-openclaw-logs.sh" 2>/dev/null && echo "Log sync stopped." || echo "Log sync not running."
+
+# =============================================================================
+# Cloudflare Tunnel (native macOS process, not Docker)
+# Runs on the host so localhost:18789 reaches the Parallels NAT-forwarded
+# OpenClaw gateway, and localhost:5678 reaches n8n's published port.
+# =============================================================================
+
+.PHONY: cloudflared-start
+cloudflared-start: ## Start cloudflared tunnel as background process on macOS host
+	@[ -n "$(CLOUDFLARE_TUNNEL_TOKEN)" ] || { echo "CLOUDFLARE_TUNNEL_TOKEN not set, skipping cloudflared"; exit 0; }
+	@command -v cloudflared >/dev/null 2>&1 || { echo "cloudflared not installed. Run: brew install cloudflared"; exit 0; }
+	@pkill -f "cloudflared tunnel run" 2>/dev/null || true
+	@sleep 1
+	@echo "Starting cloudflared tunnel on macOS host..."
+	@TUNNEL_TOKEN="$(CLOUDFLARE_TUNNEL_TOKEN)" nohup cloudflared tunnel run --token "$(CLOUDFLARE_TUNNEL_TOKEN)" \
+		> /tmp/cloudflared.log 2>&1 &
+	@echo "  cloudflared started (PID: $$!). Logs: /tmp/cloudflared.log"
+
+.PHONY: cloudflared-stop
+cloudflared-stop: ## Stop the background cloudflared process
+	@pkill -f "cloudflared tunnel run" 2>/dev/null && echo "cloudflared stopped." || echo "cloudflared not running."
 
 ###############################################################################
 # Internal Targets (called by other targets)

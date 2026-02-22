@@ -76,6 +76,13 @@ fi
 # Set workspace to the OpenClaw home directory
 openclaw config set agents.defaults.workspace "${OPENCLAW_HOME}/workspace" 2>/dev/null || true
 
+# Configure Telegram channel if token is provided
+TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
+if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+  echo "  Configuring Telegram channel..."
+  openclaw config set channels.telegram.botToken "$TELEGRAM_BOT_TOKEN" 2>/dev/null || true
+fi
+
 # Fix config file permissions (security audit flagged this)
 chmod 600 "${OPENCLAW_HOME}/openclaw.json" 2>/dev/null || true
 chmod 700 "${OPENCLAW_HOME}" 2>/dev/null || true
@@ -97,26 +104,67 @@ EOF
 chmod 600 "${OPENCLAW_HOME}/.env"
 echo "  Written: ${OPENCLAW_HOME}/.env"
 
-# 6. Start gateway
-echo "Starting OpenClaw gateway..."
-# Kill any existing gateway process
-pkill -f "openclaw gateway" 2>/dev/null || true
-sleep 1
+# 6. Open firewall port for OpenClaw (UFW is installed by Ansible)
+if command -v ufw &>/dev/null && sudo ufw status 2>/dev/null | grep -q "Status: active"; then
+  sudo ufw allow "${OPENCLAW_PORT}/tcp" comment 'OpenClaw gateway' 2>/dev/null || true
+  sudo ufw reload 2>/dev/null || true
+fi
 
-# Start gateway in background (--bind lan so host can reach via NAT port forward)
-setsid openclaw gateway --port "${OPENCLAW_PORT}" --bind lan </dev/null > "${OPENCLAW_HOME}/logs/gateway.log" 2>&1 &
-GATEWAY_PID=$!
-echo "  Gateway started (PID: ${GATEWAY_PID})"
+# 7. Start gateway via systemd service (preferred) or setsid fallback
+echo "Starting OpenClaw gateway..."
+
+# Install as a systemd system service so it auto-restarts on failure/reboot
+OPENCLAW_BIN="${HOME}/.local/bin/openclaw"
+SERVICE_FILE="/etc/systemd/system/openclaw-gateway.service"
+
+sudo bash -s -- "${OPENCLAW_BIN}" "${OPENCLAW_PORT}" "${OPENCLAW_HOME}" << 'SYSTEMD'
+OPENCLAW_BIN="$1"
+OPENCLAW_PORT="$2"
+OPENCLAW_HOME="$3"
+cat > /etc/systemd/system/openclaw-gateway.service << EOF
+[Unit]
+Description=OpenClaw AI Gateway
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=openclaw
+Group=openclaw
+WorkingDirectory=/home/openclaw
+Environment=HOME=/home/openclaw
+Environment=PATH=/home/openclaw/.local/bin:/home/openclaw/.local/share/pnpm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/bin/sh ${OPENCLAW_BIN} gateway --port ${OPENCLAW_PORT} --bind lan
+Restart=always
+RestartSec=5
+StandardOutput=append:${OPENCLAW_HOME}/logs/gateway.log
+StandardError=append:${OPENCLAW_HOME}/logs/gateway.log
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable openclaw-gateway
+SYSTEMD
+
+# Stop old process (setsid background) if running, then start service
+pkill -f "openclaw gateway" 2>/dev/null || true
+pkill -f "openclaw-gateway" 2>/dev/null || true
+sleep 2
+
+sudo systemctl restart openclaw-gateway
+echo "  Gateway started via systemd (auto-restart enabled)"
 
 # Wait for gateway to be ready
 sleep 5
-if curl -s --max-time 3 "http://127.0.0.1:${OPENCLAW_PORT}" >/dev/null 2>&1; then
-  echo "  Gateway reachable at port ${OPENCLAW_PORT}"
+if curl -s --max-time 3 "http://127.0.0.1:${OPENCLAW_PORT}" >/dev/null 2>&1 || \
+   sudo systemctl is-active --quiet openclaw-gateway; then
+  echo "  Gateway active at port ${OPENCLAW_PORT}"
 else
-  echo "  WARNING: Gateway may still be starting. Check: curl http://localhost:${OPENCLAW_PORT}"
+  echo "  WARNING: Gateway may still be starting. Check: sudo systemctl status openclaw-gateway"
 fi
 
-# 7. Verify
+# 8. Verify
 echo ""
 echo "=== OpenClaw Setup Complete ==="
 openclaw status 2>/dev/null || echo "  Run 'openclaw status' to verify"

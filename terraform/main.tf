@@ -10,6 +10,8 @@ module "parallels_vm" {
   source = "./modules/parallels-vm"
 
   parallels_password = var.parallels_password
+  vm_user            = var.vm_user
+  vm_ssh_port        = var.vm_ssh_port
 }
 
 # =============================================================================
@@ -20,9 +22,12 @@ module "cloudflare" {
   source = "./modules/cloudflare"
   count  = var.cloudflare_api_token != "" ? 1 : 0
 
-  cloudflare_account_id = var.cloudflare_account_id
-  cloudflare_domain     = var.cloudflare_domain
-  n8n_webhook_url       = var.n8n_webhook_url
+  cloudflare_account_id   = var.cloudflare_account_id
+  cloudflare_domain       = var.cloudflare_domain
+  n8n_webhook_url         = var.n8n_webhook_url
+  openclaw_subdomain      = var.openclaw_subdomain
+  cloudflare_access_email = var.cloudflare_access_email
+  vm_ip                   = var.vm_ip
 }
 
 # =============================================================================
