@@ -632,6 +632,46 @@ cloudflared-stop: ## Stop the background cloudflared process
 # (docker-up, vm-provision-openclaw, vm-setup-openclaw are defined above)
 
 ###############################################################################
+# Website Factory
+###############################################################################
+
+.PHONY: wf-setup
+wf-setup: ## Initialize Website Factory (data dir + copy scripts to n8n)
+	@echo "=== Setting up Website Factory ==="
+	@mkdir -p data/n8n/website-factory
+	@cp projects/website-factory/scripts/generate-site.sh data/n8n/website-factory/generate-site.sh
+	@chmod +x data/n8n/website-factory/generate-site.sh
+	@cp projects/website-factory/db/schema.sql data/n8n/website-factory/schema.sql
+	@echo "Website Factory setup complete. Projects stored in data/n8n/website-factory/projects.json"
+
+.PHONY: wf-push-template
+wf-push-template: ## Push base template to GitHub (GITHUB_OWNER/website-factory-base)
+	@echo "=== Pushing Website Factory base template to GitHub ==="
+	@owner="$${GITHUB_OWNER:-tech-sumit}"; \
+	cd projects/website-factory/base-template && \
+		git init -q 2>/dev/null || true && \
+		git remote remove origin 2>/dev/null || true; \
+		git remote add origin "https://github.com/$$owner/website-factory-base.git" && \
+		git add -A && git status --short
+	@echo "Then: cd projects/website-factory/base-template && git commit -m 'Base template' && git push -u origin main"
+
+.PHONY: wf-import
+wf-import: ## Import Website Factory workflow into n8n
+	@echo "Importing Website Factory workflow..."
+	@bash scripts/n8n-ctl.sh create "Website Factory Pipeline" projects/website-factory/workflow.json
+	@echo "Workflow imported. Activate via: make workflow-enable NAME=\"Website Factory Pipeline\""
+
+.PHONY: wf-run
+wf-run: ## Run Website Factory job from CLI (JOB=jobs/cafe-peter.json [--dry-run])
+	@bash projects/website-factory/scripts/run-job.sh \
+		"projects/website-factory/$(JOB)" $(if $(DRY_RUN),--dry-run,)
+
+.PHONY: wf-test
+wf-test: ## Open Website Factory form in browser
+	@open "http://localhost:$(N8N_PORT)/form/website-factory" 2>/dev/null || \
+		echo "Form URL: http://localhost:$(N8N_PORT)/form/website-factory"
+
+###############################################################################
 # Help
 ###############################################################################
 

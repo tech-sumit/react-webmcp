@@ -1,0 +1,25 @@
+{
+  "project_id": "cafe-peter-001",
+  "business_name": "Café Peter",
+  "repo_slug": "cafe-peter",
+  "category": "restaurant",
+  "style_preset": "clean-light",
+  "primary_color": "#8B4513",
+  "client_email": "",
+  "description": "Born from a passion for coffee, culture, and community, Café Peter opened its doors in 2010 in Aundh, Pune, introducing a unique fusion of Korean café charm and India's evolving taste for artisanal experiences. Founded by visionary entrepreneur Mr. Peter Chanseok Jung, the café quickly became a favourite for its gourmet donuts, premium coffee, and inviting ambiance. Over time, it transformed into a vibrant all-day dining destination, offering everything from Korean specialties to pastas, sandwiches, and pizzas. Today, with multiple outlets and a loyal following, Café Peter is more than just a café—it's a place where flavours, friendships, and innovation come together.",
+  "address": "Kharadi, Pune, Maharashtra, India",
+  "phone": "",
+  "website": "https://www.cafepeter.com/index.html",
+  "hours": {
+    "monday": "8:00 AM – 11:00 PM",
+    "tuesday": "8:00 AM – 11:00 PM",
+    "wednesday": "8:00 AM – 11:00 PM",
+    "thursday": "8:00 AM – 11:00 PM",
+    "friday": "8:00 AM – 11:00 PM",
+    "saturday": "8:00 AM – 11:00 PM",
+    "sunday": "8:00 AM – 11:00 PM"
+  },
+  "extra_context": "IMPORTANT ADDITIONAL CONTEXT:\n- This is a Korean-fusion café in Pune known for gourmet donuts, premium coffee, Korean specialties, pastas, sandwiches, pizzas\n- Founded by Mr. Peter Chanseok Jung in 2010\n- Multiple outlets in Pune, this site is for the Kharadi branch\n- They serve breakfast, lunch, dinner, and weekend brunch\n- Current website uses BentoBox platform\n- Navigation should include: Home, Our Story, Menu, Reservations, Gallery, Offers, Contact\n- Social: Facebook, Twitter, Instagram\n\nTHE SITE MUST SUPPORT THESE ADDITIONAL FEATURES (include these in the JSON):\n\n1. MENU CATEGORIES (key: \"menu_categories\"): Array of menu sections, each with name, description, and items array. Include at least: Coffee & Beverages, Donuts & Bakery, Korean Specialties, Pasta & Pizza, Sandwiches & Wraps, Breakfast. Each item has: name, description, price (as string with ₹ prefix).\n\n2. BOOKING CONFIG (key: \"booking\"): Object with enabled: true, title, subtitle, min_guests: 1, max_guests: 8, available_times array, phone_fallback, email_fallback.\n\n3. OFFERS (key: \"offers\"): Array of 3-4 promotional offers, each with title, description, badge (e.g. \"20% OFF\"), valid_until, terms.\n\n4. GALLERY (key: \"gallery\"): Array of 6-8 gallery items with alt text descriptions and category (interior/food/drinks/ambiance).\n\n5. SOCIAL LINKS (key: \"social\"): Object with facebook, instagram, twitter URLs (use placeholder URLs).",
+  "extra_sections": "IMPORTANT: Include ALL standard fields PLUS the extra keys: menu_categories, booking, offers, gallery, social. The JSON must be valid and complete.",
+  "extra_components": "- src/components/Menu.astro\n- src/components/Booking.astro\n- src/components/Offers.astro\n- src/components/Gallery.astro"
+}

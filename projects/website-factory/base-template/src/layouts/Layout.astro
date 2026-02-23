@@ -1,0 +1,93 @@
+---
+/**
+ * Base layout for all Website Factory generated sites.
+ * Cursor CLI will extend this with proper SEO meta, OG tags, and structured data.
+ * The layout reads from content/site.json for dynamic metadata.
+ */
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
+import '../styles/global.css';
+import siteData from '../../content/site.json';
+
+const {
+  title = siteData.seo?.title || siteData.business_name || 'Website',
+  description = siteData.seo?.description || siteData.headline || '',
+  image = siteData.hero_image || '/images/og-image.jpg',
+} = Astro.props;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site || 'https://example.com');
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- Primary Meta Tags -->
+    <title>{title}</title>
+    <meta name="title" content={title} />
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={image} />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content={canonicalURL} />
+    <meta property="twitter:title" content={title} />
+    <meta property="twitter:description" content={description} />
+    <meta property="twitter:image" content={image} />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- CSS Variables — Dynamic per-site colors from content/site.json -->
+    <style set:html={`
+      :root {
+        --color-primary: ${siteData.primary_color || '#2563EB'};
+        --color-primary-dark: color-mix(in srgb, var(--color-primary) 80%, black);
+        --color-primary-light: color-mix(in srgb, var(--color-primary) 80%, white);
+        --color-accent: #F59E0B;
+        --color-surface: #FFFFFF;
+        --color-surface-dark: #111827;
+        --color-muted: #6B7280;
+        --font-heading: 'Inter', system-ui, sans-serif;
+        --font-body: 'Inter', system-ui, sans-serif;
+      }
+    `} />
+  </head>
+  <body class="min-h-screen bg-surface text-gray-900 font-body antialiased">
+    <slot />
+
+    <!-- Structured Data (JSON-LD) — Cursor CLI will enhance this -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "name": siteData.business_name,
+      "description": description,
+      "address": siteData.address,
+      "telephone": siteData.phone,
+      "url": canonicalURL.toString(),
+    })} />
+  </body>
+</html>

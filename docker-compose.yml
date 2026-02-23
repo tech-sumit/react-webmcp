@@ -81,7 +81,17 @@ services:
       - TZ=${TZ:-UTC}
       # Allow file access to n8n folder (for Instagram download workflow)
       - N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES=false
-      - N8N_RESTRICT_FILE_ACCESS_TO=/home/node/.n8n/instagram-downloads;/home/node/.n8n-files
+      - NODE_FUNCTION_ALLOW_EXTERNAL=*
+      - NODE_FUNCTION_ALLOW_BUILTIN=child_process,fs,path,crypto
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - N8N_RESTRICT_FILE_ACCESS_TO=/home/node/.n8n/instagram-downloads;/home/node/.n8n-files;/home/node/.n8n/website-factory;/tmp/website-factory
+      # Website Factory (optional)
+      - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-${OPENCLAW_API_KEY:-}}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-opus-4-6}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - GITHUB_OWNER=${GITHUB_OWNER:-tech-sumit}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY:-}
     volumes:
       - ./data/n8n:/home/node/.n8n
     depends_on:

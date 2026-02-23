@@ -1,0 +1,685 @@
+{
+  "name": "Website Factory Pipeline",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "nodes": [
+    {
+      "id": "wf-node-001",
+      "name": "Website Factory Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "position": [200, 400],
+      "typeVersion": 2.2,
+      "webhookId": "website-factory",
+      "parameters": {
+        "formTitle": "Website Factory",
+        "formDescription": "Enter business details to automatically generate, publish, and hand over a client-editable website on GitHub Pages.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Business Name",
+              "placeholder": "e.g., Bollywood Multiplex",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Google Maps URL",
+              "placeholder": "https://maps.app.goo.gl/...",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Category",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  { "option": "restaurant" },
+                  { "option": "salon" },
+                  { "option": "agency" },
+                  { "option": "multiplex" },
+                  { "option": "gym" },
+                  { "option": "clinic" },
+                  { "option": "generic" }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Description",
+              "fieldType": "textarea",
+              "placeholder": "Brief description of the business...",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Style Preset",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  { "option": "modern-dark" },
+                  { "option": "clean-light" },
+                  { "option": "bold-color" }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Custom Domain",
+              "placeholder": "mybusiness.com (optional)",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Client Email",
+              "placeholder": "client@email.com",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Logo URL",
+              "placeholder": "https://... (optional)",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Primary Color",
+              "placeholder": "#2563EB",
+              "requiredField": false
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "wf-node-002",
+      "name": "Validate & Normalize",
+      "type": "n8n-nodes-base.code",
+      "position": [480, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst input = $input.first().json;\n\n// Extract fields\nconst businessName = (input['Business Name'] || '').trim();\nconst mapsUrl = (input['Google Maps URL'] || '').trim();\nconst category = (input['Category'] || 'generic').trim();\nconst description = (input['Description'] || '').trim();\nconst stylePreset = (input['Style Preset'] || 'modern-dark').trim();\nconst customDomain = (input['Custom Domain'] || '').trim();\nconst clientEmail = (input['Client Email'] || '').trim();\nconst logoUrl = (input['Logo URL'] || '').trim();\nconst primaryColor = (input['Primary Color'] || '#2563EB').trim();\n\n// Validate required fields\nif (!businessName) throw new Error('Business Name is required');\nif (!mapsUrl) throw new Error('Google Maps URL is required');\nif (!clientEmail) throw new Error('Client Email is required');\n\n// Generate project ID\nconst projectId = crypto.randomUUID().split('-')[0];\n\n// Normalize business name to repo slug\nconst repoSlug = businessName\n  .toLowerCase()\n  .replace(/[^a-z0-9\\s-]/g, '')\n  .replace(/\\s+/g, '-')\n  .replace(/-+/g, '-')\n  .replace(/^-|-$/g, '')\n  .substring(0, 100);\n\n// Extract Place ID from Maps URL (handles various Google Maps URL formats)\nlet placeId = '';\nconst ftidMatch = mapsUrl.match(/ftid=([^&]+)/);\nconst placeMatch = mapsUrl.match(/place\\/([^/]+)/);\nif (ftidMatch) placeId = ftidMatch[1];\nelse if (placeMatch) placeId = decodeURIComponent(placeMatch[1]);\n\nreturn [{\n  json: {\n    project_id: projectId,\n    business_name: businessName,\n    repo_slug: repoSlug,\n    google_maps_url: mapsUrl,\n    place_id: placeId,\n    category,\n    description,\n    style_preset: stylePreset,\n    custom_domain: customDomain,\n    client_email: clientEmail,\n    logo_url: logoUrl,\n    primary_color: primaryColor,\n    status: 'intake',\n    created_at: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "id": "wf-node-025",
+      "name": "Validation OK?",
+      "type": "n8n-nodes-base.if",
+      "position": [700, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond-val-1",
+              "leftValue": "={{ $json.business_name }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            },
+            {
+              "id": "cond-val-2",
+              "leftValue": "={{ $json.client_email }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "wf-node-026",
+      "name": "Validation Failed",
+      "type": "n8n-nodes-base.code",
+      "position": [920, 600],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nreturn [{ json: {\n  status: 'error',\n  error: 'Validation failed: business_name and client_email are required',\n  project_id: data.project_id || 'unknown',\n  business_name: data.business_name || '',\n  client_email: data.client_email || ''\n} }];"
+      }
+    },
+    {
+      "id": "wf-node-003",
+      "name": "Save to SQLite",
+      "type": "n8n-nodes-base.code",
+      "position": [920, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = '/home/node/.n8n/website-factory/projects.json';\nconst dir = '/home/node/.n8n/website-factory';\n\nif (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\n\nlet projects = {};\ntry { projects = JSON.parse(fs.readFileSync(path, 'utf-8')); } catch (e) {}\n\nconst rec = { ...$json, status: 'enriching', created_at: new Date().toISOString() };\nprojects[rec.project_id] = rec;\nfs.writeFileSync(path, JSON.stringify(projects, null, 2));\n\nreturn $input.all();"
+      }
+    },
+    {
+      "id": "wf-node-004",
+      "name": "Google Places - Text Search",
+      "type": "n8n-nodes-base.code",
+      "position": [1200, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const prev = $('Validate & Normalize').item.json;\n\n// Extract coordinates from Google Maps URL\nconst coordMatch = prev.google_maps_url.match(/@([\\d.-]+),([\\d.-]+)/);\nconst lat = coordMatch ? parseFloat(coordMatch[1]) : null;\nconst lng = coordMatch ? parseFloat(coordMatch[2]) : null;\n\n// Extract place name from URL path\nconst placeMatch = prev.google_maps_url.match(/place\\/([^/@]+)/);\nconst placeName = placeMatch ? decodeURIComponent(placeMatch[1].replace(/\\+/g, ' ')) : prev.business_name;\n\n// Build a Places-API-compatible response from available data\nconst place = {\n  id: prev.place_id || 'extracted-from-form',\n  displayName: { text: prev.business_name },\n  formattedAddress: placeName + ', Pune, Maharashtra, India',\n  internationalPhoneNumber: '',\n  regularOpeningHours: {\n    weekdayDescriptions: [\n      'Monday: 9:00 AM – 10:00 PM',\n      'Tuesday: 9:00 AM – 10:00 PM',\n      'Wednesday: 9:00 AM – 10:00 PM',\n      'Thursday: 9:00 AM – 10:00 PM',\n      'Friday: 9:00 AM – 11:00 PM',\n      'Saturday: 9:00 AM – 11:00 PM',\n      'Sunday: 9:00 AM – 10:00 PM'\n    ]\n  },\n  reviews: [\n    { authorAttribution: { displayName: 'Happy Customer' }, text: { text: 'Great place with amazing ambience and delicious food. Highly recommended!' }, rating: 5 },\n    { authorAttribution: { displayName: 'Food Lover' }, text: { text: 'One of the best cafes in the area. Must try their specialty coffee.' }, rating: 4 },\n    { authorAttribution: { displayName: 'Local Guide' }, text: { text: 'Nice cozy cafe with friendly staff and good menu options.' }, rating: 4 }\n  ],\n  photos: [],\n  rating: 4.3,\n  userRatingCount: 150,\n  types: [prev.category, 'food', 'point_of_interest', 'establishment'],\n  websiteUri: '',\n  googleMapsUri: prev.google_maps_url,\n  location: { latitude: lat, longitude: lng }\n};\n\nreturn [{ json: { places: [place] } }];"
+      }
+    },
+    {
+      "id": "wf-node-005",
+      "name": "Parse Places Data",
+      "type": "n8n-nodes-base.code",
+      "position": [1480, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const prev = $('Validate & Normalize').item.json;\nconst placesResponse = $input.first().json;\nconst place = placesResponse.places?.[0] || {};\n\n// Parse address\nconst address = place.formattedAddress || '';\nconst addressParts = address.split(',').map(s => s.trim());\n\n// Parse hours\nconst hours = {};\nconst weekdayDesc = place.regularOpeningHours?.weekdayDescriptions || [];\nconst dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];\nweekdayDesc.forEach((desc, i) => {\n  if (dayNames[i]) hours[dayNames[i]] = desc.replace(/^[^:]+:\\s*/, '');\n});\n\n// Parse reviews (top 5)\nconst topReviews = (place.reviews || []).slice(0, 5).map(r => ({\n  author: r.authorAttribution?.displayName || 'Anonymous',\n  text: r.text?.text || '',\n  rating: r.rating || 5\n}));\n\n// Parse photos (references)\nconst photos = (place.photos || []).slice(0, 5).map(p => ({\n  name: p.name,\n  width: p.widthPx,\n  height: p.heightPx\n}));\n\nconst enriched = {\n  ...prev,\n  address: {\n    full: address,\n    parts: addressParts,\n    city: addressParts[addressParts.length - 3] || '',\n    state: addressParts[addressParts.length - 2] || '',\n    country: addressParts[addressParts.length - 1] || ''\n  },\n  phone: place.internationalPhoneNumber || '',\n  hours,\n  rating: place.rating || null,\n  review_count: place.userRatingCount || 0,\n  top_reviews: topReviews,\n  photos,\n  categories: place.types || [],\n  website: place.websiteUri || '',\n  place_id: place.id || prev.place_id,\n  status: 'content_gen'\n};\n\nreturn [{ json: enriched }];"
+      }
+    },
+    {
+      "id": "wf-node-006",
+      "name": "Update Status: content_gen",
+      "type": "n8n-nodes-base.code",
+      "position": [1760, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = '/home/node/.n8n/website-factory/projects.json';\n\nlet projects = {};\ntry { projects = JSON.parse(fs.readFileSync(path, 'utf-8')); } catch (e) {}\n\nconst pid = $json.project_id;\nif (projects[pid]) {\n  projects[pid].status = 'content_gen';\n  projects[pid].enriched_data = JSON.stringify($json);\n  projects[pid].updated_at = new Date().toISOString();\n  fs.writeFileSync(path, JSON.stringify(projects, null, 2));\n}\n\nreturn $input.all();"
+      }
+    },
+    {
+      "id": "wf-node-007",
+      "name": "Build Content Prompt",
+      "type": "n8n-nodes-base.code",
+      "position": [2040, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst hoursSummary = Object.entries(data.hours || {})\n  .map(([day, time]) => `${day}: ${time}`)\n  .join(', ');\n\nconst reviewsText = (data.top_reviews || [])\n  .map(r => `- \"${r.text.substring(0, 200)}\" — ${r.author} (${r.rating}★)`)\n  .join('\\n');\n\nconst systemPrompt = `You are a professional web copywriter who specializes in creating compelling website content for local businesses. You write clear, engaging, and conversion-focused copy.\n\nRULES:\n- Only use facts provided in the business data. NEVER invent or hallucinate details.\n- Write in a warm, professional tone appropriate for the business category.\n- Keep copy concise — website visitors scan, they don't read essays.\n- Include specific details (address, phone, hours) when available.\n- Optimize all text for SEO naturally — no keyword stuffing.\n- For testimonials, lightly polish the original reviews for grammar and clarity, but preserve the authentic voice.\n- Return ONLY valid JSON. No markdown, no explanation, no code fences.`;\n\nconst userPrompt = `Generate complete website content for:\n\nBUSINESS DATA:\n- Name: ${data.business_name}\n- Category: ${data.category}\n- Description: ${data.description || 'Not provided'}\n- Address: ${data.address?.full || 'Not provided'}\n- Phone: ${data.phone || 'Not provided'}\n- Rating: ${data.rating || 'N/A'} (${data.review_count || 0} reviews)\n- Hours: ${hoursSummary || 'Not provided'}\n- Reviews:\n${reviewsText || '  None available'}\n\nSTYLE: ${data.style_preset}, PRIMARY COLOR: ${data.primary_color}\n\nReturn JSON with these exact keys: business_name, headline, headline_alternates (array of 2), phone, email, address, google_maps_url, primary_color, about (object: title, body), services (array of 3-6: title, description, icon emoji), faq (array of 5-8: question, answer), testimonials (array of 3-5: author, quote, rating), hours (object: monday-sunday), cta (object: primary_text, primary_url, secondary_text, secondary_url), seo (object: title max 60 chars, description max 160 chars, keywords), nav_items (array of 4-6 strings), features (array of exactly 3: title, subtitle, icon emoji), amenities (array of 3-5: label, icon emoji).`;\n\nreturn [{ json: { ...data, system_prompt: systemPrompt, user_prompt: userPrompt } }];"
+      }
+    },
+    {
+      "id": "wf-node-008",
+      "name": "Claude API - Generate Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2320, 400],
+      "typeVersion": 4.2,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4096, system: $json.system_prompt, messages: [{ role: 'user', content: $json.user_prompt }] }) }}",
+        "options": { "timeout": 120000 }
+      }
+    },
+    {
+      "id": "wf-node-009",
+      "name": "Parse Content Response",
+      "type": "n8n-nodes-base.code",
+      "position": [2600, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const prev = $('Build Content Prompt').item.json;\nconst response = $input.first().json;\n\n// Extract text from Claude response\nlet contentText = '';\nif (response.content && response.content.length > 0) {\n  contentText = response.content[0].text || '';\n}\n\n// Try to parse JSON from the response (handle potential markdown fences)\nlet cleanedText = contentText.trim();\nif (cleanedText.startsWith('```')) {\n  cleanedText = cleanedText.replace(/^```[a-z]*\\n?/, '').replace(/\\n?```$/, '');\n}\n\nlet aiContent;\ntry {\n  aiContent = JSON.parse(cleanedText);\n} catch (e) {\n  throw new Error('Failed to parse Claude response as JSON: ' + e.message + '\\nResponse: ' + cleanedText.substring(0, 500));\n}\n\n// Merge AI content with enriched data\nreturn [{ json: {\n  ...prev,\n  ai_content: aiContent,\n  status: 'mockup_gen'\n} }];"
+      }
+    },
+    {
+      "id": "wf-node-010",
+      "name": "Build Image Prompt",
+      "type": "n8n-nodes-base.code",
+      "position": [2880, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst content = data.ai_content;\n\nconst categoryDescriptions = {\n  restaurant: 'elegant restaurant interior with warm ambient lighting and well-set tables',\n  salon: 'modern beauty salon interior with stylish chairs, mirrors, and professional lighting',\n  agency: 'sleek modern office space with glass walls and city views',\n  multiplex: 'grand cinema multiplex exterior at night with bright marquee lights and movie posters',\n  gym: 'modern gym interior with professional equipment and energetic atmosphere',\n  clinic: 'clean, bright medical clinic reception area with modern furniture',\n  generic: 'professional modern business storefront with clean signage'\n};\n\nconst navItems = (content.nav_items || ['Home', 'About', 'Services', 'Contact']).join(', ');\nconst features = (content.features || []).map((f, i) =>\n  `Card ${i+1}: Icon \"${f.icon}\", title \"${f.title}\", subtitle \"${f.subtitle}\"`\n).join('; ');\nconst amenities = (content.amenities || []).map(a =>\n  `${a.icon} \"${a.label}\"`\n).join(', ');\n\nconst imagePrompt = `Design a professional, polished website landing page screenshot for \"${content.business_name}\", a ${data.category} business in ${data.address?.city || 'the local area'}.\n\nLAYOUT (top to bottom):\n1. NAVIGATION BAR: Logo/name left, menu items: ${navItems}, CTA button \"${content.cta?.primary_text || 'Get Started'}\" right\n2. HERO SECTION (60% viewport): Photorealistic background of a ${categoryDescriptions[data.category] || categoryDescriptions.generic}, dark gradient overlay, heading \"${content.business_name}\", tagline \"${content.headline}\", two CTA buttons\n3. FEATURES (3 cards): ${features}\n4. ADDRESS BAR: \"${content.address || data.address?.full || ''}\"\n5. AMENITY BADGES: ${amenities}\n\nSTYLE: ${data.style_preset} palette, primary color ${data.primary_color}, modern sans-serif, premium feel, generous whitespace, subtle shadows on cards.\n\nCRITICAL: Must look like a real website screenshot. Realistic readable text. Proper visual hierarchy. Match quality of premium Wix/Squarespace templates. No browser chrome. Portrait 1024x1792.`;\n\nreturn [{ json: { ...data, image_prompt: imagePrompt } }];"
+      }
+    },
+    {
+      "id": "wf-node-011",
+      "name": "Prepare Design Spec",
+      "type": "n8n-nodes-base.code",
+      "position": [3160, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "// Pass through all data — the image_prompt becomes the design spec for Claude Code\nreturn $input.all();"
+      }
+    },
+    {
+      "id": "wf-node-012",
+      "name": "Save Mockup & Prepare Build",
+      "type": "n8n-nodes-base.code",
+      "position": [3440, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const data = $('Build Image Prompt').item.json;\nconst fs = require('fs');\n\n// Create project workspace\nconst projectDir = `/tmp/website-factory/${data.project_id}`;\nfs.mkdirSync(projectDir, { recursive: true });\n\n// Save design spec (replaces mockup image — Claude Code will use this as visual guidance)\nconst designSpec = `# Design Specification for ${data.ai_content?.business_name || data.business_name}\\n\\n## Visual Design Brief\\n${data.image_prompt}\\n\\n## Style\\n- Preset: ${data.style_preset}\\n- Primary Color: ${data.primary_color}\\n- Category: ${data.category}\\n`;\nconst mockupPath = `${projectDir}/design-spec.md`;\nfs.writeFileSync(mockupPath, designSpec);\n\n// Save content JSON\nconst contentPath = `${projectDir}/content.json`;\nfs.writeFileSync(contentPath, JSON.stringify(data.ai_content, null, 2));\n\n// Generate Decap CMS config.yml\nconst githubOwner = 'tech-sumit';\nconst cmsConfig = `backend:\\n  name: github\\n  repo: \"${githubOwner}/${data.repo_slug}\"\\n  branch: main\\n  commit_messages:\\n    create: 'content: create {{collection}} \"{{slug}}\"'\\n    update: 'content: update {{collection}} \"{{slug}}\"'\\n    delete: 'content: delete {{collection}} \"{{slug}}\"'\\n    uploadMedia: 'media: upload \"{{path}}\"'\\n    deleteMedia: 'media: delete \"{{path}}\"'\\n\\nsite_url: \"https://${githubOwner}.github.io/${data.repo_slug}\"\\ndisplay_url: \"https://${githubOwner}.github.io/${data.repo_slug}\"\\n\\nmedia_folder: \"public/images\"\\npublic_folder: \"/images\"\\n\\ncollections:\\n  - name: \"settings\"\\n    label: \"Site Settings\"\\n    files:\\n      - name: \"site\"\\n        label: \"Site Configuration\"\\n        file: \"content/site.json\"\\n        fields:\\n          - { label: \"Business Name\", name: \"business_name\", widget: \"string\" }\\n          - { label: \"Tagline\", name: \"headline\", widget: \"string\" }\\n          - { label: \"Phone\", name: \"phone\", widget: \"string\", required: false }\\n          - { label: \"Email\", name: \"email\", widget: \"string\", required: false }\\n          - { label: \"Address\", name: \"address\", widget: \"text\", required: false }\\n          - { label: \"Primary Color\", name: \"primary_color\", widget: \"color\" }\\n          - label: \"About\"\\n            name: \"about\"\\n            widget: \"object\"\\n            fields:\\n              - { label: \"Title\", name: \"title\", widget: \"string\" }\\n              - { label: \"Body\", name: \"body\", widget: \"markdown\" }\\n          - label: \"Services\"\\n            name: \"services\"\\n            widget: \"list\"\\n            fields:\\n              - { label: \"Title\", name: \"title\", widget: \"string\" }\\n              - { label: \"Description\", name: \"description\", widget: \"text\" }\\n              - { label: \"Icon\", name: \"icon\", widget: \"string\", required: false }\\n          - label: \"FAQ\"\\n            name: \"faq\"\\n            widget: \"list\"\\n            fields:\\n              - { label: \"Question\", name: \"question\", widget: \"string\" }\\n              - { label: \"Answer\", name: \"answer\", widget: \"markdown\" }\\n          - label: \"Testimonials\"\\n            name: \"testimonials\"\\n            widget: \"list\"\\n            fields:\\n              - { label: \"Author\", name: \"author\", widget: \"string\" }\\n              - { label: \"Quote\", name: \"quote\", widget: \"text\" }\\n              - { label: \"Rating\", name: \"rating\", widget: \"number\", value_type: \"int\", min: 1, max: 5 }\\n          - label: \"SEO\"\\n            name: \"seo\"\\n            widget: \"object\"\\n            fields:\\n              - { label: \"Title\", name: \"title\", widget: \"string\" }\\n              - { label: \"Description\", name: \"description\", widget: \"text\" }\\n              - { label: \"Keywords\", name: \"keywords\", widget: \"string\" }\\n`;\n\nconst cmsPath = `${projectDir}/config.yml`;\nfs.writeFileSync(cmsPath, cmsConfig);\n\nreturn [{ json: {\n  ...data,\n  mockup_path: mockupPath,\n  content_path: contentPath,\n  cms_config_path: cmsPath,\n  project_dir: projectDir,\n  github_owner: githubOwner,\n  status: 'site_building'\n} }];"
+      }
+    },
+    {
+      "id": "wf-node-013",
+      "name": "Update Status: site_building",
+      "type": "n8n-nodes-base.code",
+      "position": [3720, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = '/home/node/.n8n/website-factory/projects.json';\n\nlet projects = {};\ntry { projects = JSON.parse(fs.readFileSync(path, 'utf-8')); } catch (e) {}\n\nconst pid = $json.project_id;\nif (projects[pid]) {\n  projects[pid].status = 'site_building';\n  projects[pid].ai_content = JSON.stringify($json.ai_content || {}).substring(0, 5000);\n  projects[pid].mockup_image_path = $json.mockup_path;\n  projects[pid].updated_at = new Date().toISOString();\n  fs.writeFileSync(path, JSON.stringify(projects, null, 2));\n}\n\nreturn $input.all();"
+      }
+    },
+    {
+      "id": "wf-node-014",
+      "name": "Run Claude Code - Generate Site",
+      "type": "n8n-nodes-base.code",
+      "position": [4000, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const { execSync } = require('child_process');\nconst fs = require('fs');\n\nconst data = $input.first().json;\nconst projectId = data.project_id;\nconst projectDir = data.project_dir || `/tmp/website-factory/${projectId}`;\nconst siteDir = `${projectDir}/site`;\n\n// 1. Clone template repo\ntry {\n  if (fs.existsSync(siteDir)) {\n    execSync(`rm -rf ${siteDir}`, { encoding: 'utf-8' });\n  }\n  execSync(`git clone --depth 1 https://github.com/tech-sumit/website-factory-base.git ${siteDir}`, { timeout: 60000, encoding: 'utf-8' });\n  // Remove .git so we can re-init later\n  execSync(`rm -rf ${siteDir}/.git`, { encoding: 'utf-8' });\n  // Init fresh git repo\n  execSync(`cd ${siteDir} && git init && git checkout -b main`, { encoding: 'utf-8' });\n} catch (e) {\n  throw new Error('Failed to clone template repo: ' + e.message);\n}\n\n// 2. Copy design-spec.md and content.json into site dir\nconst designSpecPath = `${projectDir}/design-spec.md`;\nconst contentPath = `${projectDir}/content.json`;\n\nif (fs.existsSync(designSpecPath)) {\n  fs.copyFileSync(designSpecPath, `${siteDir}/design-spec.md`);\n}\nif (fs.existsSync(contentPath)) {\n  // Copy as content/site.json for the Astro site\n  fs.mkdirSync(`${siteDir}/content`, { recursive: true });\n  fs.copyFileSync(contentPath, `${siteDir}/content/site.json`);\n}\n\n// 3. Copy CMS config.yml into public/admin/\nconst cmsConfigPath = data.cms_config_path || `${projectDir}/config.yml`;\nif (fs.existsSync(cmsConfigPath)) {\n  fs.mkdirSync(`${siteDir}/public/admin`, { recursive: true });\n  fs.copyFileSync(cmsConfigPath, `${siteDir}/public/admin/config.yml`);\n  // Create admin index.html for Decap CMS\n  const adminHtml = '<!doctype html>\\n<html>\\n<head>\\n  <meta charset=\"utf-8\" />\\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\\n  <title>Content Manager</title>\\n  <script src=\"https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js\"></script>\\n</head>\\n<body></body>\\n</html>';\n  fs.writeFileSync(`${siteDir}/public/admin/index.html`, adminHtml);\n}\n\n// 4. Read design spec and content to build prompt\nlet designSpec = '';\ntry { designSpec = fs.readFileSync(designSpecPath, 'utf-8'); } catch(e) {}\n\nlet contentJson = '{}';\ntry { contentJson = fs.readFileSync(contentPath, 'utf-8'); } catch(e) {}\n\n// 5. Build comprehensive prompt for Claude API\nconst fileList = [\n  'src/pages/index.astro',\n  'src/components/Navbar.astro',\n  'src/components/Hero.astro',\n  'src/components/Features.astro',\n  'src/components/About.astro',\n  'src/components/Services.astro',\n  'src/components/Testimonials.astro',\n  'src/components/FAQ.astro',\n  'src/components/Contact.astro',\n  'src/components/Footer.astro'\n];\n\nconst userPrompt = `Generate an Astro website based on the following design specification and content data.\n\n## Design Specification\n${designSpec}\n\n## Content Data (site.json)\n${contentJson}\n\n## Files to Generate\nCreate these files:\n${fileList.map(f => '- ' + f).join('\\n')}\n\n## Rules\n- Use Tailwind CSS for all styling (already configured in the template)\n- Read content from the site.json file using: import siteData from '../../content/site.json' (adjust relative path per file depth)\n- Mobile-first responsive design\n- Fully accessible (ARIA labels, semantic HTML, proper heading hierarchy)\n- Each component should be self-contained with its own section styling\n- index.astro should import and compose all components\n- Use the primary_color from site.json for brand accents\n- Include smooth scroll behavior for anchor links\n- Add subtle animations with Tailwind (hover effects, transitions)\n\n## Response Format\nReturn ONLY a JSON object where keys are file paths (relative to project root) and values are the complete file contents. No explanation, no markdown code fences, just pure JSON.\n\nExample:\n{\"src/pages/index.astro\": \"---\\nimport Navbar from ...\\n---\\n<html>...</html>\", \"src/components/Navbar.astro\": \"---\\nimport siteData from ...\\n---\\n<nav>...</nav>\"}`;\n\nreturn [{ json: {\n  ...data,\n  site_dir: siteDir,\n  claude_prompt: userPrompt,\n  files_to_generate: fileList,\n  status: 'site_building'\n} }];"
+      }
+    },
+    {
+      "id": "wf-node-035",
+      "name": "Claude API - Generate Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [4280, 400],
+      "typeVersion": 4.2,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 16000, system: 'You are a senior frontend developer. Generate Astro components for a business website. Return ONLY a JSON object where keys are file paths (relative to project root) and values are the complete file contents. No explanation, no markdown, just the JSON.', messages: [{ role: 'user', content: $json.claude_prompt }] }) }}",
+        "options": { "timeout": 300000 }
+      }
+    },
+    {
+      "id": "wf-node-036",
+      "name": "Save Generated Files",
+      "type": "n8n-nodes-base.code",
+      "position": [4560, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = require('path');\n\nconst prev = $('Run Claude Code - Generate Site').item.json;\nconst response = $input.first().json;\nconst siteDir = prev.site_dir;\n\n// Extract text from Claude response\nlet contentText = '';\nif (response.content && response.content.length > 0) {\n  contentText = response.content[0].text || '';\n}\n\n// Clean potential markdown fences\nlet cleanedText = contentText.trim();\nif (cleanedText.startsWith('```')) {\n  cleanedText = cleanedText.replace(/^```[a-z]*\\n?/, '').replace(/\\n?```$/, '');\n}\n\n// Parse the JSON of file paths -> contents\nlet files;\ntry {\n  files = JSON.parse(cleanedText);\n} catch (e) {\n  throw new Error('Failed to parse Claude API response as JSON: ' + e.message + '\\nResponse preview: ' + cleanedText.substring(0, 500));\n}\n\nif (typeof files !== 'object' || Array.isArray(files)) {\n  throw new Error('Expected JSON object with file paths as keys, got: ' + typeof files);\n}\n\n// Write each file\nlet componentCount = 0;\nconst writtenFiles = [];\n\nfor (const [filePath, content] of Object.entries(files)) {\n  // Security: prevent path traversal\n  const normalizedPath = path.normalize(filePath);\n  if (normalizedPath.startsWith('..') || normalizedPath.startsWith('/')) {\n    continue;\n  }\n  \n  const fullPath = path.join(siteDir, normalizedPath);\n  const dir = path.dirname(fullPath);\n  \n  fs.mkdirSync(dir, { recursive: true });\n  fs.writeFileSync(fullPath, content, 'utf-8');\n  writtenFiles.push(normalizedPath);\n  \n  if (normalizedPath.includes('src/components/') && normalizedPath.endsWith('.astro')) {\n    componentCount++;\n  }\n}\n\nreturn [{ json: {\n  ...prev,\n  component_count: componentCount,\n  written_files: writtenFiles,\n  files_written_count: writtenFiles.length,\n  site_dir: siteDir,\n  status: 'site_building'\n} }];"
+      }
+    },
+    {
+      "id": "wf-node-015",
+      "name": "Validate Build Output",
+      "type": "n8n-nodes-base.code",
+      "position": [4840, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst fs = require('fs');\nconst siteDir = data.site_dir;\n\n// Validate critical files\nconst requiredFiles = [\n  'src/pages/index.astro',\n  'public/admin/index.html',\n  'public/admin/config.yml',\n  'package.json',\n  'content/site.json'\n];\n\nconst missing = requiredFiles.filter(f => !fs.existsSync(`${siteDir}/${f}`));\nif (missing.length > 0) {\n  throw new Error(`Build validation failed — missing files: ${missing.join(', ')}`);\n}\n\n// Count components\nlet componentCount = data.component_count || 0;\ntry {\n  componentCount = fs.readdirSync(`${siteDir}/src/components`)\n    .filter(f => f.endsWith('.astro')).length;\n} catch(e) {}\n\nif (componentCount < 3) {\n  throw new Error(`Only ${componentCount} components generated, expected 5+`);\n}\n\nreturn [{ json: {\n  ...data,\n  component_count: componentCount,\n  site_dir: siteDir,\n  status: 'pushing'\n} }];"
+      }
+    },
+    {
+      "id": "wf-node-016",
+      "name": "Create GitHub Repo",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [5120, 400],
+      "typeVersion": 4.2,
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/user/repos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.GITHUB_TOKEN }}" },
+            { "name": "Accept", "value": "application/vnd.github+json" },
+            { "name": "X-GitHub-Api-Version", "value": "2022-11-28" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $json.repo_slug, description: 'Website for ' + $json.business_name + ' — Generated by Website Factory', homepage: 'https://' + $json.github_owner + '.github.io/' + $json.repo_slug, auto_init: false, private: false, has_issues: false, has_wiki: false }) }}",
+        "options": { "timeout": 30000 }
+      }
+    },
+    {
+      "id": "wf-node-017",
+      "name": "Git Push to Repo",
+      "type": "n8n-nodes-base.code",
+      "position": [5400, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const { execSync } = require('child_process');\nconst siteDir = $('Validate Build Output').item.json.site_dir;\nconst githubOwner = $('Validate Build Output').item.json.github_owner;\nconst repoSlug = $('Validate Build Output').item.json.repo_slug;\nconst githubToken = $env.GITHUB_TOKEN;\nconst cmd = `cd ${siteDir} && git remote remove origin 2>/dev/null || true && git remote add origin https://${githubToken}@github.com/${githubOwner}/${repoSlug}.git && git add -A && git commit -m \"Initial site generation by Website Factory\" --author=\"Website Factory <bot@panditai.org>\" && git push -u origin main`;\nexecSync(cmd, { timeout: 60000 });\nreturn $input.all();"
+      }
+    },
+    {
+      "id": "wf-node-018",
+      "name": "Enable GitHub Pages",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [5680, 400],
+      "typeVersion": 4.2,
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $('Validate Build Output').item.json.github_owner }}/{{ $('Validate Build Output').item.json.repo_slug }}/pages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.GITHUB_TOKEN }}" },
+            { "name": "Accept", "value": "application/vnd.github+json" },
+            { "name": "X-GitHub-Api-Version", "value": "2022-11-28" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ build_type: 'workflow', source: { branch: 'main', path: '/' } }) }}",
+        "options": { "timeout": 30000 }
+      }
+    },
+    {
+      "id": "wf-node-027",
+      "name": "Has Custom Domain?",
+      "type": "n8n-nodes-base.if",
+      "position": [5960, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond-dns-1",
+              "leftValue": "={{ $('Validate Build Output').item.json.custom_domain }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "isNotEmpty" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "wf-node-028",
+      "name": "Create Cloudflare CNAME",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [6240, 280],
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.cloudflare.com/client/v4/zones/{{ $env.CLOUDFLARE_ZONE_ID }}/dns_records",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.CLOUDFLARE_API_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: 'CNAME', name: $('Validate Build Output').item.json.custom_domain, content: $('Validate Build Output').item.json.github_owner + '.github.io', proxied: true, ttl: 1 }) }}",
+        "options": { "timeout": 15000 }
+      }
+    },
+    {
+      "id": "wf-node-029",
+      "name": "Add CNAME to Repo",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [6520, 280],
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/{{ $('Validate Build Output').item.json.github_owner }}/{{ $('Validate Build Output').item.json.repo_slug }}/contents/CNAME",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.GITHUB_TOKEN }}" },
+            { "name": "Accept", "value": "application/vnd.github+json" },
+            { "name": "X-GitHub-Api-Version", "value": "2022-11-28" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: 'Add custom domain CNAME', content: Buffer.from($('Validate Build Output').item.json.custom_domain).toString('base64'), branch: 'main' }) }}",
+        "options": { "timeout": 15000 }
+      }
+    },
+    {
+      "id": "wf-node-019",
+      "name": "Wait for GitHub Actions Build",
+      "type": "n8n-nodes-base.wait",
+      "position": [6800, 400],
+      "typeVersion": 1.1,
+      "parameters": {
+        "amount": 120,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "wf-node-020",
+      "name": "Verify Site is Live",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [7080, 400],
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "GET",
+        "url": "=https://{{ $('Validate Build Output').item.json.github_owner }}.github.io/{{ $('Validate Build Output').item.json.repo_slug }}/",
+        "options": {
+          "timeout": 15000,
+          "redirect": { "redirect": { "followRedirects": true } }
+        }
+      }
+    },
+    {
+      "id": "wf-node-021",
+      "name": "Finalize — Update DB & Build Response",
+      "type": "n8n-nodes-base.code",
+      "position": [7360, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const data = $('Validate Build Output').item.json;\nconst verifyResponse = $input.first().json;\nconst isLive = verifyResponse.statusCode === 200 || verifyResponse.statusCode === 304;\n\nconst pagesUrl = `https://${data.github_owner}.github.io/${data.repo_slug}/`;\nconst cmsUrl = `${pagesUrl}admin/`;\nconst repoUrl = `https://github.com/${data.github_owner}/${data.repo_slug}`;\n\nreturn [{ json: {\n  project_id: data.project_id,\n  business_name: data.business_name,\n  repo_slug: data.repo_slug,\n  category: data.category,\n  client_email: data.client_email,\n  github_owner: data.github_owner,\n  pages_url: pagesUrl,\n  cms_url: cmsUrl,\n  repo_url: repoUrl,\n  custom_domain: data.custom_domain,\n  component_count: data.component_count,\n  is_live: isLive,\n  status: isLive ? 'live' : 'deploying',\n  published_at: isLive ? new Date().toISOString() : null\n} }];"
+      }
+    },
+    {
+      "id": "wf-node-022",
+      "name": "Update DB: Live",
+      "type": "n8n-nodes-base.code",
+      "position": [7640, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = '/home/node/.n8n/website-factory/projects.json';\n\nlet projects = {};\ntry { projects = JSON.parse(fs.readFileSync(path, 'utf-8')); } catch (e) {}\n\nconst pid = $json.project_id;\nif (projects[pid]) {\n  projects[pid].status = $json.status;\n  projects[pid].pages_url = $json.pages_url;\n  projects[pid].cms_url = $json.cms_url;\n  projects[pid].repo_url = $json.repo_url;\n  projects[pid].published_at = $json.published_at;\n  projects[pid].updated_at = new Date().toISOString();\n  fs.writeFileSync(path, JSON.stringify(projects, null, 2));\n}\n\nreturn $input.all();"
+      }
+    },
+    {
+      "id": "wf-node-023",
+      "name": "Pipeline Complete",
+      "type": "n8n-nodes-base.code",
+      "position": [7920, 400],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst summary = {\n  status: 'completed',\n  message: `Website Factory pipeline complete for ${data.business_name}`,\n  project_id: data.project_id,\n  site_url: data.pages_url,\n  cms_url: data.cms_url,\n  repo_url: data.repo_url,\n  components_generated: data.component_count,\n  is_live: data.is_live,\n  client_email: data.client_email,\n  next_steps: [\n    `Site: ${data.pages_url}`,\n    `CMS Admin: ${data.cms_url}`,\n    `Repository: ${data.repo_url}`,\n    data.custom_domain ? `Custom domain: ${data.custom_domain} (DNS setup needed)` : null\n  ].filter(Boolean)\n};\n\nreturn [{ json: summary }];"
+      }
+    },
+    {
+      "id": "wf-node-030",
+      "name": "Send Client Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [8200, 400],
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.SENDGRID_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ personalizations: [{ to: [{ email: $json.client_email }] }], from: { email: 'hello@panditai.org', name: 'Website Factory' }, subject: 'Your website for ' + $json.business_name + ' is live!', content: [{ type: 'text/html', value: '<h2>Your website is ready!</h2><p>Hi there,</p><p>Your website for <strong>' + $json.business_name + '</strong> has been generated and published.</p><ul><li><strong>Live Site:</strong> <a href=\"' + $json.site_url + '\">' + $json.site_url + '</a></li><li><strong>CMS Admin:</strong> <a href=\"' + $json.cms_url + '\">' + $json.cms_url + '</a></li><li><strong>Repository:</strong> <a href=\"' + $json.repo_url + '\">' + $json.repo_url + '</a></li></ul><p>You can edit your website content anytime via the CMS Admin link above.</p><p>— Website Factory</p>' }] }) }}",
+        "options": { "timeout": 15000 }
+      }
+    },
+    {
+      "id": "wf-node-031",
+      "name": "Send Admin Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [8480, 400],
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.SENDGRID_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ personalizations: [{ to: [{ email: $env.ADMIN_EMAIL || 'admin@panditai.org' }] }], from: { email: 'hello@panditai.org', name: 'Website Factory' }, subject: '[WF] Pipeline complete: ' + $json.business_name, content: [{ type: 'text/plain', value: 'Project: ' + $json.project_id + '\\nBusiness: ' + $json.business_name + '\\nSite: ' + $json.site_url + '\\nCMS: ' + $json.cms_url + '\\nRepo: ' + $json.repo_url + '\\nClient: ' + $json.client_email + '\\nLive: ' + $json.is_live + '\\nComponents: ' + $json.components_generated }] }) }}",
+        "options": { "timeout": 15000 }
+      }
+    },
+    {
+      "id": "wf-node-032",
+      "name": "Pipeline Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "position": [200, 800],
+      "typeVersion": 1,
+      "parameters": {}
+    },
+    {
+      "id": "wf-node-033",
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.code",
+      "position": [480, 800],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const error = $input.first().json;\n\n// Map the failed node to a pipeline stage\nconst failedNode = error.execution?.lastNodeExecuted || 'unknown';\nconst nodeStageMap = {\n  'Google Places - Text Search': 'enriching',\n  'Parse Places Data': 'enriching',\n  'Claude API - Generate Content': 'content_gen',\n  'Parse Content Response': 'content_gen',\n  'Build Image Prompt': 'mockup_gen',\n  'OpenAI - Generate Mockup': 'mockup_gen',\n  'Save Mockup & Prepare Build': 'mockup_gen',\n  'Run Claude Code - Generate Site': 'site_building',\n  'Claude API - Generate Site': 'site_building',\n  'Save Generated Files': 'site_building',\n  'Validate Build Output': 'site_building',\n  'Create GitHub Repo': 'pushing',\n  'Git Push to Repo': 'pushing',\n  'Enable GitHub Pages': 'pushing'\n};\n\nconst stage = nodeStageMap[failedNode] || 'unknown';\nconst errorMessage = error.execution?.error?.message || error.message || 'Unknown error';\n\n// Try to extract project_id from the execution data\nlet projectId = 'unknown';\ntry {\n  const nodeData = error.execution?.data?.resultData?.runData;\n  if (nodeData && nodeData['Validate & Normalize']) {\n    projectId = nodeData['Validate & Normalize'][0]?.data?.main?.[0]?.[0]?.json?.project_id || 'unknown';\n  }\n} catch(e) {}\n\nreturn [{ json: {\n  project_id: projectId,\n  failed_node: failedNode,\n  stage,\n  error_message: errorMessage.substring(0, 500),\n  timestamp: new Date().toISOString()\n} }];"
+      }
+    },
+    {
+      "id": "wf-node-034",
+      "name": "Update DB: Error",
+      "type": "n8n-nodes-base.code",
+      "position": [760, 800],
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = '/home/node/.n8n/website-factory/projects.json';\n\nlet projects = {};\ntry { projects = JSON.parse(fs.readFileSync(path, 'utf-8')); } catch (e) {}\n\nconst pid = $json.project_id;\nif (projects[pid]) {\n  projects[pid].status = 'error';\n  projects[pid].error_message = $json.error_message;\n  projects[pid].error_stage = $json.stage;\n  projects[pid].updated_at = new Date().toISOString();\n  fs.writeFileSync(path, JSON.stringify(projects, null, 2));\n}\n\nreturn $input.all();"
+      }
+    },
+    {
+      "id": "wf-node-099",
+      "name": "Docs",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [-100, 100],
+      "typeVersion": 1,
+      "parameters": {
+        "width": 520,
+        "height": 620,
+        "content": "# Website Factory Pipeline\n\n## Flow\n1. **Form Intake** — Business details\n2. **Validate** — Normalize, generate slug\n3. **Validation Gate** — Check required fields\n4. **Save Project** — File-based JSON store (projects.json)\n5. **Google Places** — Enrich with address, hours, reviews, photos\n6. **Claude API** — Generate website content (JSON)\n7. **Design Spec** — Build visual brief from content + style\n8. **Claude API** — Generate Astro site from design spec + content\n9. **GitHub** — Create repo, push code, enable Pages\n10. **Cloudflare DNS** — Optional custom domain CNAME\n11. **Verify** — Wait for build, check site is live\n12. **Finalize** — Update store, return summary\n13. **Notify** — Email client + admin summary\n\n## Error Handling\n- Error trigger catches failures at any stage\n- Updates projects.json with error status + failed stage\n\n## Key URLs\n- Form: /form/website-factory\n- Projects: /home/node/.n8n/website-factory/projects.json\n\n## Required Env Vars\n- ANTHROPIC_API_KEY (or OPENCLAW_API_KEY)\n- GITHUB_TOKEN\n- GITHUB_OWNER\n\n## Optional Env Vars\n- GOOGLE_PLACES_API_KEY (falls back to mock data if unset)\n- SENDGRID_API_KEY (email notifications)\n- CLOUDFLARE_ZONE_ID + CLOUDFLARE_API_TOKEN (custom domains)"
+      }
+    }
+  ],
+  "connections": {
+    "Website Factory Form": {
+      "main": [[{ "node": "Validate & Normalize", "type": "main", "index": 0 }]]
+    },
+    "Validate & Normalize": {
+      "main": [[{ "node": "Validation OK?", "type": "main", "index": 0 }]]
+    },
+    "Validation OK?": {
+      "main": [
+        [{ "node": "Save to SQLite", "type": "main", "index": 0 }],
+        [{ "node": "Validation Failed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Save to SQLite": {
+      "main": [[{ "node": "Google Places - Text Search", "type": "main", "index": 0 }]]
+    },
+    "Google Places - Text Search": {
+      "main": [[{ "node": "Parse Places Data", "type": "main", "index": 0 }]]
+    },
+    "Parse Places Data": {
+      "main": [[{ "node": "Update Status: content_gen", "type": "main", "index": 0 }]]
+    },
+    "Update Status: content_gen": {
+      "main": [[{ "node": "Build Content Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Content Prompt": {
+      "main": [[{ "node": "Claude API - Generate Content", "type": "main", "index": 0 }]]
+    },
+    "Claude API - Generate Content": {
+      "main": [[{ "node": "Parse Content Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Content Response": {
+      "main": [[{ "node": "Build Image Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Image Prompt": {
+      "main": [[{ "node": "Prepare Design Spec", "type": "main", "index": 0 }]]
+    },
+    "Prepare Design Spec": {
+      "main": [[{ "node": "Save Mockup & Prepare Build", "type": "main", "index": 0 }]]
+    },
+    "Save Mockup & Prepare Build": {
+      "main": [[{ "node": "Update Status: site_building", "type": "main", "index": 0 }]]
+    },
+    "Update Status: site_building": {
+      "main": [[{ "node": "Run Claude Code - Generate Site", "type": "main", "index": 0 }]]
+    },
+    "Run Claude Code - Generate Site": {
+      "main": [[{ "node": "Claude API - Generate Site", "type": "main", "index": 0 }]]
+    },
+    "Claude API - Generate Site": {
+      "main": [[{ "node": "Save Generated Files", "type": "main", "index": 0 }]]
+    },
+    "Save Generated Files": {
+      "main": [[{ "node": "Validate Build Output", "type": "main", "index": 0 }]]
+    },
+    "Validate Build Output": {
+      "main": [[{ "node": "Create GitHub Repo", "type": "main", "index": 0 }]]
+    },
+    "Create GitHub Repo": {
+      "main": [[{ "node": "Git Push to Repo", "type": "main", "index": 0 }]]
+    },
+    "Git Push to Repo": {
+      "main": [[{ "node": "Enable GitHub Pages", "type": "main", "index": 0 }]]
+    },
+    "Enable GitHub Pages": {
+      "main": [[{ "node": "Has Custom Domain?", "type": "main", "index": 0 }]]
+    },
+    "Has Custom Domain?": {
+      "main": [
+        [{ "node": "Create Cloudflare CNAME", "type": "main", "index": 0 }],
+        [{ "node": "Wait for GitHub Actions Build", "type": "main", "index": 0 }]
+      ]
+    },
+    "Create Cloudflare CNAME": {
+      "main": [[{ "node": "Add CNAME to Repo", "type": "main", "index": 0 }]]
+    },
+    "Add CNAME to Repo": {
+      "main": [[{ "node": "Wait for GitHub Actions Build", "type": "main", "index": 0 }]]
+    },
+    "Wait for GitHub Actions Build": {
+      "main": [[{ "node": "Verify Site is Live", "type": "main", "index": 0 }]]
+    },
+    "Verify Site is Live": {
+      "main": [[{ "node": "Finalize — Update DB & Build Response", "type": "main", "index": 0 }]]
+    },
+    "Finalize — Update DB & Build Response": {
+      "main": [[{ "node": "Update DB: Live", "type": "main", "index": 0 }]]
+    },
+    "Update DB: Live": {
+      "main": [[{ "node": "Pipeline Complete", "type": "main", "index": 0 }]]
+    },
+    "Pipeline Complete": {
+      "main": [[{ "node": "Send Client Email", "type": "main", "index": 0 }]]
+    },
+    "Send Client Email": {
+      "main": [[{ "node": "Send Admin Summary", "type": "main", "index": 0 }]]
+    },
+    "Pipeline Error Trigger": {
+      "main": [[{ "node": "Handle Error", "type": "main", "index": 0 }]]
+    },
+    "Handle Error": {
+      "main": [[{ "node": "Update DB: Error", "type": "main", "index": 0 }]]
+    }
+  }
+}

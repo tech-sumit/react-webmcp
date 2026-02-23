@@ -1,0 +1,71 @@
+{
+  "business_name": "Your Business Name",
+  "headline": "Welcome to Your Business",
+  "phone": "",
+  "email": "",
+  "address": "",
+  "google_maps_url": "",
+  "primary_color": "#2563EB",
+  "about": {
+    "title": "About Us",
+    "body": "Tell your customers about your business. What makes you special? What do you offer?"
+  },
+  "services": [
+    {
+      "title": "Service One",
+      "description": "Describe your first service or offering.",
+      "icon": "star"
+    },
+    {
+      "title": "Service Two",
+      "description": "Describe your second service or offering.",
+      "icon": "heart"
+    },
+    {
+      "title": "Service Three",
+      "description": "Describe your third service or offering.",
+      "icon": "zap"
+    }
+  ],
+  "faq": [
+    {
+      "question": "What are your hours?",
+      "answer": "We are open Monday through Friday, 9 AM to 6 PM."
+    },
+    {
+      "question": "Where are you located?",
+      "answer": "Visit us at our convenient location. See the map below for directions."
+    }
+  ],
+  "testimonials": [
+    {
+      "author": "Happy Customer",
+      "quote": "Great service and wonderful experience!",
+      "rating": 5
+    }
+  ],
+  "hours": {
+    "monday": "9:00 AM – 6:00 PM",
+    "tuesday": "9:00 AM – 6:00 PM",
+    "wednesday": "9:00 AM – 6:00 PM",
+    "thursday": "9:00 AM – 6:00 PM",
+    "friday": "9:00 AM – 6:00 PM",
+    "saturday": "10:00 AM – 4:00 PM",
+    "sunday": "Closed"
+  },
+  "cta": {
+    "primary_text": "Get Started",
+    "primary_url": "#contact",
+    "secondary_text": "Learn More",
+    "secondary_url": "#about"
+  },
+  "seo": {
+    "title": "Your Business Name — Tagline",
+    "description": "Your business meta description for search engines.",
+    "keywords": "business, local, services"
+  },
+  "deploy": {
+    "site": null,
+    "base": null
+  }
+}
