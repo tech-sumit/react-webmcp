@@ -1,3 +1,0 @@
-[submodule "openclaw/ansible"]
-	path = openclaw/ansible
-	url = https://github.com/openclaw/openclaw-ansible

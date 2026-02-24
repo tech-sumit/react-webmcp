@@ -1,0 +1,155 @@
+---
+- name: Create zeroclaw system user
+  ansible.builtin.user:
+    name: "{{ zeroclaw_user }}"
+    comment: "ZeroClaw Service User"
+    system: true
+    shell: /bin/bash
+    create_home: true
+    home: "{{ zeroclaw_home }}"
+    state: present
+
+- name: Ensure zeroclaw home directory has correct ownership
+  ansible.builtin.file:
+    path: "{{ zeroclaw_home }}"
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    state: directory
+    mode: '0755'
+
+- name: Configure .bashrc for zeroclaw user
+  ansible.builtin.blockinfile:
+    path: "{{ zeroclaw_home }}/.bashrc"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - ZeroClaw config"
+    block: |
+      # Enable 256 colors
+      export TERM=xterm-256color
+      export COLORTERM=truecolor
+
+      # Rust/Cargo in PATH
+      export PATH="{{ zeroclaw_home }}/.cargo/bin:$PATH"
+
+      # Color support for common tools
+      export CLICOLOR=1
+      export LS_COLORS='di=34:ln=35:so=32:pi=33:ex=31:bd=34;46:cd=34;43:su=30;41:sg=30;46:tw=30;42:ow=30;43'
+
+      # Aliases
+      alias ls='ls --color=auto'
+      alias grep='grep --color=auto'
+      alias ll='ls -lah'
+    create: true
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    mode: '0644'
+
+- name: Add zeroclaw user to sudoers with scoped NOPASSWD
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ zeroclaw_user }}"
+    mode: '0440'
+    owner: root
+    group: root
+    content: |
+      # ZeroClaw sudo permissions (scoped for security)
+      # Service control - zeroclaw services only
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl start zeroclaw-gateway
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop zeroclaw-gateway
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart zeroclaw-gateway
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl status zeroclaw-gateway
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable zeroclaw-gateway
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl disable zeroclaw-gateway
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl start zeroclaw-browser
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop zeroclaw-browser
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart zeroclaw-browser
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl status zeroclaw-browser
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
+
+      # Tailscale diagnostics
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale status
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale up *
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale down
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale ip *
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale version
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale ping *
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale whois *
+
+      # Journal access - zeroclaw logs only
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u zeroclaw-gateway *
+      {{ zeroclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u zeroclaw-browser *
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Create .bash_profile to source .bashrc for login shells
+  ansible.builtin.copy:
+    dest: "{{ zeroclaw_home }}/.bash_profile"
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    mode: '0644'
+    content: |
+      if [ -f ~/.bashrc ]; then
+          . ~/.bashrc
+      fi
+
+- name: Get zeroclaw user ID
+  ansible.builtin.command: "id -u {{ zeroclaw_user }}"
+  register: zeroclaw_uid
+  changed_when: false
+  when: ansible_os_family == 'Debian' and not ci_test
+
+- name: Enable lingering for zeroclaw user
+  ansible.builtin.command: "loginctl enable-linger {{ zeroclaw_user }}"
+  changed_when: false
+  when: ansible_os_family == 'Debian' and not ci_test
+
+- name: Create runtime directory for zeroclaw user
+  ansible.builtin.file:
+    path: "/run/user/{{ zeroclaw_uid.stdout }}"
+    state: directory
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    mode: '0700'
+  when: ansible_os_family == 'Debian' and not ci_test
+
+- name: Store zeroclaw UID as fact
+  ansible.builtin.set_fact:
+    zeroclaw_uid_value: "{{ zeroclaw_uid.stdout }}"
+  when: ansible_os_family == 'Debian' and not ci_test
+
+- name: Create .ssh directory for zeroclaw user
+  ansible.builtin.file:
+    path: "{{ zeroclaw_home }}/.ssh"
+    state: directory
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    mode: '0700'
+
+- name: Add SSH authorized keys for zeroclaw user
+  ansible.posix.authorized_key:
+    user: "{{ zeroclaw_user }}"
+    state: present
+    key: "{{ item }}"
+  loop: "{{ zeroclaw_ssh_keys }}"
+  when: zeroclaw_ssh_keys | length > 0
+
+- name: Set XDG_RUNTIME_DIR in .bashrc
+  ansible.builtin.lineinfile:
+    path: "{{ zeroclaw_home }}/.bashrc"
+    line: 'export XDG_RUNTIME_DIR=/run/user/$(id -u)'
+    state: present
+    create: true
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    mode: '0644'
+  when: ansible_os_family == 'Debian' and not ci_test
+
+- name: Set DBUS_SESSION_BUS_ADDRESS in .bashrc
+  ansible.builtin.blockinfile:
+    path: "{{ zeroclaw_home }}/.bashrc"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - DBus config"
+    block: |
+      if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+        export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+      fi
+    create: true
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    mode: '0644'
+  when: ansible_os_family == 'Debian' and not ci_test

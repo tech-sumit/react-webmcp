@@ -25,7 +25,8 @@ module "cloudflare" {
   cloudflare_account_id   = var.cloudflare_account_id
   cloudflare_domain       = var.cloudflare_domain
   n8n_webhook_url         = var.n8n_webhook_url
-  openclaw_subdomain      = var.openclaw_subdomain
+  zeroclaw_subdomain      = var.zeroclaw_subdomain
+  cms_subdomain           = var.cms_subdomain
   cloudflare_access_email = var.cloudflare_access_email
   vm_ip                   = var.vm_ip
 }

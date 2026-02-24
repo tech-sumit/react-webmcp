@@ -42,10 +42,10 @@ Skip these to start the core stack without monitoring dashboards:
 | `GRAFANA_CLOUD_API_KEY` | Grafana Cloud > API Keys > Add (MetricsPublisher + Editor roles) |
 | `GRAFANA_CLOUD_STACK_URL` | Your Grafana stack URL, e.g. `https://yourstack.grafana.net` |
 
-### Optional: OpenClaw AI agent
+### Optional: ZeroClaw AI agent
 | Variable | Where to get it |
 |----------|----------------|
-| `OPENCLAW_API_KEY` | Your LLM provider API key (e.g. Anthropic API key) |
+| `ZEROCLAW_API_KEY` | Your LLM provider API key (e.g. Anthropic API key) |
 
 ### Optional: AWS and GitHub (Terraform modules)
 Only needed if using the S3 or GitHub Terraform modules:

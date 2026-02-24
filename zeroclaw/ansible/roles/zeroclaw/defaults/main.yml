@@ -1,0 +1,28 @@
+---
+# ZeroClaw default variables
+
+# CI testing mode - skips tasks that require systemd, Docker-in-Docker, or kernel access
+ci_test: false
+
+# Tailscale settings
+tailscale_enabled: false
+tailscale_authkey: ""
+
+# ZeroClaw settings
+zeroclaw_port: 42617
+
+# ZeroClaw config directory
+zeroclaw_config_dir: "{{ zeroclaw_home }}/.zeroclaw"
+
+# User settings (will be created as system user)
+zeroclaw_user: zeroclaw
+zeroclaw_home: /home/zeroclaw
+
+# ZeroClaw source repo (built from source on the VM)
+zeroclaw_repo_url: "https://github.com/zeroclaw-labs/zeroclaw.git"
+zeroclaw_repo_branch: "main"
+zeroclaw_code_dir: "{{ zeroclaw_home }}/code"
+zeroclaw_repo_dir: "{{ zeroclaw_code_dir }}/zeroclaw"
+
+# SSH keys for zeroclaw user
+zeroclaw_ssh_keys: []

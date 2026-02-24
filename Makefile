@@ -25,7 +25,7 @@ VM_SCP        := scp -o StrictHostKeyChecking=no -P $(VM_SSH_PORT)
 HOST_IP       ?= 10.211.55.2
 N8N_PORT      ?= 5678
 VAULT_PORT    ?= 8200
-OPENCLAW_PORT ?= 18789
+ZEROCLAW_PORT ?= 42617
 TZ            ?= UTC
 
 # Core variables -- required for the stack to start
@@ -36,7 +36,7 @@ CORE_VARS := POSTGRES_PASSWORD N8N_ENCRYPTION_KEY N8N_WEBHOOK_URL N8N_API_KEY \
 OPTIONAL_VARS := CLOUDFLARE_DOMAIN CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID \
                  GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_LOKI_URL \
                  GRAFANA_CLOUD_USER GRAFANA_CLOUD_API_KEY GRAFANA_CLOUD_STACK_URL \
-                 OPENCLAW_API_KEY
+                 ZEROCLAW_API_KEY
 
 ###############################################################################
 # Configuration
@@ -119,25 +119,25 @@ generate-secrets: ## Generate random values for internal secrets
 	@grep -q '^REDIS_PASSWORD=$$' .env 2>/dev/null && \
 		sed -i '' "s/^REDIS_PASSWORD=$$/REDIS_PASSWORD=$$(openssl rand -base64 16 | tr -d '/+=' | head -c 24)/" .env && \
 		echo "  Generated REDIS_PASSWORD" || true
-	@echo "Done. Review .env and fill in remaining REQUIRED values (Cloudflare, Grafana Cloud, OpenClaw API key)."
+	@echo "Done. Review .env and fill in remaining REQUIRED values (Cloudflare, Grafana Cloud, ZeroClaw API key)."
 
 ###############################################################################
-# Lifecycle (Host Docker + VM OpenClaw)
+# Lifecycle (Host Docker + VM ZeroClaw)
 ###############################################################################
 
 .PHONY: up
-up: check-env sudo-cache ensure-prldevops tf-init docker-up vm-create vm-ports tf-apply vm-setup-openclaw health ## Full bootstrap: start stack on host + OpenClaw in VM (Ansible provisions VM during tf-apply)
+up: check-env sudo-cache ensure-prldevops tf-init docker-up vm-create vm-ports tf-apply vm-setup-zeroclaw health ## Full bootstrap: start stack on host + ZeroClaw in VM (Ansible provisions VM during tf-apply)
 	@echo ""
 	@echo "=== System is UP ==="
-	@echo "n8n:      http://localhost:$(N8N_PORT)"
-	@echo "Vault:    http://localhost:$(VAULT_PORT)"
-	@echo "OpenClaw: http://localhost:$(OPENCLAW_PORT) (via VM)"
-	@echo "VM SSH:   ssh -p $(VM_SSH_PORT) $(VM_USER)@localhost"
+	@echo "n8n:       http://localhost:$(N8N_PORT)"
+	@echo "Vault:     http://localhost:$(VAULT_PORT)"
+	@echo "ZeroClaw:  http://localhost:$(ZEROCLAW_PORT) (via VM)"
+	@echo "VM SSH:    ssh -p $(VM_SSH_PORT) $(VM_USER)@localhost"
 
 .PHONY: docker-up
 docker-up: ## Start Docker stack on host + seed Vault
 	@echo "=== Starting Docker stack on host ==="
-	@mkdir -p data/n8n data/postgres data/vault data/redis data/openclaw-logs
+	@mkdir -p data/n8n data/postgres data/vault data/redis data/zeroclaw-logs
 	docker compose up -d
 	@echo "Waiting for Vault to be ready..."
 	@for i in $$(seq 1 30); do \
@@ -276,7 +276,7 @@ vm-create: ## Create VM by cloning template (or skip if already exists)
 	@echo "VM '$(VM_NAME)' is running."
 
 .PHONY: vm-ports
-vm-ports: ## Set up NAT port forwarding (SSH + OpenClaw + node-exporter)
+vm-ports: ## Set up NAT port forwarding (SSH + ZeroClaw + node-exporter)
 	@echo "=== Setting up port forwarding ==="
 	@VM_IP=$$($(VM_IP_CMD)); \
 	if [ -z "$$VM_IP" ]; then \
@@ -288,54 +288,79 @@ vm-ports: ## Set up NAT port forwarding (SSH + OpenClaw + node-exporter)
 	prlsrvctl net set Shared --nat-tcp-add n8n-ssh,$(VM_SSH_PORT),$$VM_IP,22 2>/dev/null || \
 		(prlsrvctl net set Shared --nat-tcp-del n8n-ssh 2>/dev/null; \
 		 prlsrvctl net set Shared --nat-tcp-add n8n-ssh,$(VM_SSH_PORT),$$VM_IP,22); \
-	echo "  Forwarding localhost:$(OPENCLAW_PORT) -> $$VM_IP:$(OPENCLAW_PORT) (OpenClaw)"; \
-	prlsrvctl net set Shared --nat-tcp-add n8n-openclaw,$(OPENCLAW_PORT),$$VM_IP,$(OPENCLAW_PORT) 2>/dev/null || \
-		(prlsrvctl net set Shared --nat-tcp-del n8n-openclaw 2>/dev/null; \
-		 prlsrvctl net set Shared --nat-tcp-add n8n-openclaw,$(OPENCLAW_PORT),$$VM_IP,$(OPENCLAW_PORT)); \
+	echo "  Forwarding localhost:$(ZEROCLAW_PORT) -> $$VM_IP:$(ZEROCLAW_PORT) (ZeroClaw)"; \
+	prlsrvctl net set Shared --nat-tcp-add n8n-zeroclaw,$(ZEROCLAW_PORT),$$VM_IP,$(ZEROCLAW_PORT) 2>/dev/null || \
+		(prlsrvctl net set Shared --nat-tcp-del n8n-zeroclaw 2>/dev/null; \
+		 prlsrvctl net set Shared --nat-tcp-add n8n-zeroclaw,$(ZEROCLAW_PORT),$$VM_IP,$(ZEROCLAW_PORT)); \
 	echo "  Forwarding localhost:9100 -> $$VM_IP:9100 (node-exporter)"; \
 	prlsrvctl net set Shared --nat-tcp-add n8n-node-exporter,9100,$$VM_IP,9100 2>/dev/null || \
 		(prlsrvctl net set Shared --nat-tcp-del n8n-node-exporter 2>/dev/null; \
 		 prlsrvctl net set Shared --nat-tcp-add n8n-node-exporter,9100,$$VM_IP,9100); \
-	echo "Port forwarding configured (SSH + OpenClaw + node-exporter)."
+	echo "Port forwarding configured (SSH + ZeroClaw + node-exporter)."
 
-.PHONY: vm-provision-openclaw
-vm-provision-openclaw: ## Provision VM: install only Node.js + OpenClaw + basic tools
-	@echo "=== Provisioning VM (OpenClaw only) ==="
+.PHONY: vm-provision-zeroclaw
+vm-provision-zeroclaw: ## Provision VM: create zeroclaw user, install Rust toolchain + build ZeroClaw
+	@echo "=== Provisioning VM (ZeroClaw) ==="
 	@echo "Waiting for any background apt to finish..."
 	@$(VM_SSH) 'while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo "  apt lock held, waiting..."; sleep 5; done'
-	@echo "Installing Node.js + OpenClaw..."
+	@echo "Creating zeroclaw system user..."
+	@$(VM_SSH) 'sudo useradd -m -s /bin/bash zeroclaw 2>/dev/null || true && \
+		sudo usermod -aG sudo zeroclaw 2>/dev/null || true && \
+		echo "zeroclaw ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/zeroclaw >/dev/null && \
+		sudo chmod 440 /etc/sudoers.d/zeroclaw && \
+		echo "  User zeroclaw ready"'
+	@echo "Installing build dependencies + Rust + ZeroClaw..."
 	$(VM_SSH) 'set -euo pipefail && export DEBIAN_FRONTEND=noninteractive && \
 		sudo apt-get update && \
-		sudo apt-get install -y jq curl && \
-		curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && \
-		sudo apt-get install -y nodejs && \
-		sudo npm install -g openclaw@latest && \
-		echo "Provisioning complete: $$(openclaw --version 2>/dev/null || echo openclaw installed)"'
+		sudo apt-get install -y jq curl build-essential pkg-config libssl-dev && \
+		if [ ! -f "$$HOME/.cargo/bin/rustc" ]; then \
+			curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal; \
+		fi && \
+		export PATH="$$HOME/.cargo/bin:$$PATH" && \
+		echo "Rust: $$(rustc --version)" && \
+		mkdir -p $$HOME/code && \
+		if [ ! -d "$$HOME/code/zeroclaw/.git" ]; then \
+			git clone https://github.com/zeroclaw-labs/zeroclaw.git $$HOME/code/zeroclaw; \
+		else \
+			cd $$HOME/code/zeroclaw && git pull; \
+		fi && \
+		cd $$HOME/code/zeroclaw && cargo build --release --locked && \
+		install -m 0755 target/release/zeroclaw $$HOME/.cargo/bin/zeroclaw && \
+		sudo mkdir -p /home/zeroclaw/.cargo/bin && \
+		sudo cp $$HOME/.cargo/bin/zeroclaw /home/zeroclaw/.cargo/bin/zeroclaw && \
+		sudo chown -R zeroclaw:zeroclaw /home/zeroclaw/.cargo && \
+		echo "export PATH=\\$$HOME/.cargo/bin:\\$$PATH" | sudo tee -a /home/zeroclaw/.bashrc >/dev/null && \
+		echo "Provisioning complete: $$(zeroclaw --version 2>/dev/null || echo zeroclaw installed)"'
 
-.PHONY: vm-setup-openclaw
-vm-setup-openclaw: ## Configure and start OpenClaw in the VM
-	@echo "=== Setting up OpenClaw in VM ==="
-	@echo "Copying OpenClaw setup script to VM..."
-	$(VM_SCP) scripts/openclaw-setup.sh $(VM_USER)@localhost:/tmp/openclaw-setup.sh
-	@if [ -d openclaw/workspace ]; then \
-		echo "Syncing OpenClaw workspace files to VM..."; \
-		$(VM_SSH) "sudo mkdir -p /home/openclaw/.openclaw/workspace/skills /home/openclaw/.openclaw/logs && sudo chown -R openclaw:openclaw /home/openclaw/.openclaw"; \
+.PHONY: vm-setup-zeroclaw
+vm-setup-zeroclaw: ## Configure and start ZeroClaw in the VM
+	@echo "=== Setting up ZeroClaw in VM ==="
+	@echo "Installing zeroclaw-gateway systemd service..."
+	@$(VM_SSH) 'printf "[Unit]\nDescription=ZeroClaw AI Gateway\nAfter=network.target\nWants=network.target\nStartLimitIntervalSec=0\n\n[Service]\nType=simple\nUser=zeroclaw\nGroup=zeroclaw\nWorkingDirectory=/home/zeroclaw\nEnvironment=HOME=/home/zeroclaw\nEnvironment=PATH=/home/zeroclaw/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nExecStart=/home/zeroclaw/.cargo/bin/zeroclaw gateway --port $(ZEROCLAW_PORT) --host 0.0.0.0\nRestart=always\nRestartSec=5\nStandardOutput=append:/home/zeroclaw/.zeroclaw/logs/gateway.log\nStandardError=append:/home/zeroclaw/.zeroclaw/logs/gateway.log\n\n[Install]\nWantedBy=multi-user.target\n" | sudo tee /etc/systemd/system/zeroclaw-gateway.service >/dev/null && \
+		sudo systemctl daemon-reload && sudo systemctl enable zeroclaw-gateway 2>/dev/null && \
+		sudo ufw allow $(ZEROCLAW_PORT)/tcp comment "ZeroClaw gateway" 2>/dev/null || true'
+	@echo "Copying ZeroClaw setup script to VM..."
+	$(VM_SCP) scripts/zeroclaw-setup.sh $(VM_USER)@localhost:/tmp/zeroclaw-setup.sh
+	@if [ -d zeroclaw/workspace ]; then \
+		echo "Syncing ZeroClaw workspace files to VM..."; \
+		$(VM_SSH) "sudo mkdir -p /home/zeroclaw/.zeroclaw/workspace/skills /home/zeroclaw/.zeroclaw/logs && sudo chown -R zeroclaw:zeroclaw /home/zeroclaw/.zeroclaw"; \
 		rsync -avz --progress \
 			-e "ssh -o StrictHostKeyChecking=no -p $(VM_SSH_PORT)" \
-			openclaw/workspace/ $(VM_USER)@localhost:/tmp/openclaw-workspace/; \
-		$(VM_SSH) "sudo cp -r /tmp/openclaw-workspace/. /home/openclaw/.openclaw/workspace/ && sudo chown -R openclaw:openclaw /home/openclaw/.openclaw/workspace"; \
+			zeroclaw/workspace/ $(VM_USER)@localhost:/tmp/zeroclaw-workspace/; \
+		$(VM_SSH) "sudo cp -r /tmp/zeroclaw-workspace/. /home/zeroclaw/.zeroclaw/workspace/ && sudo chown -R zeroclaw:zeroclaw /home/zeroclaw/.zeroclaw/workspace"; \
 	fi
-	@echo "Running OpenClaw setup in VM (as openclaw user)..."
-	$(VM_SSH) "sudo -H -u openclaw env HOST_IP=$(HOST_IP) N8N_PORT=$(N8N_PORT) OPENCLAW_PORT=$(OPENCLAW_PORT) OPENCLAW_API_KEY=$(OPENCLAW_API_KEY) VAULT_ROOT_TOKEN=$(VAULT_ROOT_TOKEN) VAULT_PORT=$(VAULT_PORT) N8N_API_KEY=$(N8N_API_KEY) TELEGRAM_BOT_TOKEN=$(TELEGRAM_BOT_TOKEN) PATH=/home/openclaw/.local/bin:/home/openclaw/.local/share/pnpm:$$PATH HOME=/home/openclaw bash /tmp/openclaw-setup.sh"
-	@echo "OpenClaw setup complete."
+	@echo "Running ZeroClaw setup in VM (as zeroclaw user)..."
+	$(VM_SSH) "sudo -H -u zeroclaw env HOST_IP=$(HOST_IP) N8N_PORT=$(N8N_PORT) ZEROCLAW_PORT=$(ZEROCLAW_PORT) ZEROCLAW_API_KEY=$(ZEROCLAW_API_KEY) VAULT_ROOT_TOKEN=$(VAULT_ROOT_TOKEN) VAULT_PORT=$(VAULT_PORT) N8N_API_KEY=$(N8N_API_KEY) TELEGRAM_BOT_TOKEN=$(TELEGRAM_BOT_TOKEN) PATH=/home/zeroclaw/.cargo/bin:$$PATH HOME=/home/zeroclaw bash /tmp/zeroclaw-setup.sh"
+	@echo "ZeroClaw setup complete."
 
 .PHONY: vm-destroy
 vm-destroy: ## Destroy VM and remove port forwarding
 	@echo "=== Destroying VM '$(VM_NAME)' ==="
-	@echo "Stopping OpenClaw in VM (if reachable)..."
-	@$(VM_SSH) "openclaw gateway stop" 2>/dev/null || true
+	@echo "Stopping ZeroClaw in VM (if reachable)..."
+	@$(VM_SSH) "zeroclaw gateway stop" 2>/dev/null || true
 	@echo "Removing port forwarding rules..."
 	@prlsrvctl net set Shared --nat-tcp-del n8n-ssh 2>/dev/null || true
+	@prlsrvctl net set Shared --nat-tcp-del n8n-zeroclaw 2>/dev/null || true
 	@prlsrvctl net set Shared --nat-tcp-del n8n-openclaw 2>/dev/null || true
 	@# Clean up legacy rules from previous architecture
 	@prlsrvctl net set Shared --nat-tcp-del n8n-web 2>/dev/null || true
@@ -476,14 +501,14 @@ vault-list: ## List all n8n secrets in Vault
 		"http://localhost:$(VAULT_PORT)/v1/secret/metadata/n8n?list=true" | jq '.data.keys'
 
 .PHONY: vault-seed
-vault-seed: ## Write OpenClaw API key and other agent secrets to Vault
+vault-seed: ## Write ZeroClaw API key and other agent secrets to Vault
 	@echo "Seeding Vault with agent secrets..."
-	@jq -n --arg k "$(OPENCLAW_API_KEY)" '{"data": {"api_key": $$k}}' | \
+	@jq -n --arg k "$(ZEROCLAW_API_KEY)" '{"data": {"api_key": $$k}}' | \
 		curl -s -X POST \
 		-H "X-Vault-Token: $(VAULT_ROOT_TOKEN)" \
 		-H "Content-Type: application/json" \
 		-d @- \
-		"http://localhost:$(VAULT_PORT)/v1/secret/data/n8n/openclaw" | jq '.data.version // "seeded"'
+		"http://localhost:$(VAULT_PORT)/v1/secret/data/n8n/zeroclaw" | jq '.data.version // "seeded"'
 	@jq -n --arg k "$(N8N_API_KEY)" '{"data": {"api_key": $$k}}' | \
 		curl -s -X POST \
 		-H "X-Vault-Token: $(VAULT_ROOT_TOKEN)" \
@@ -582,32 +607,31 @@ alerts-push: ## Push versioned alert rules to Grafana Cloud
 ###############################################################################
 
 .PHONY: agent
-agent: ## Send a message to OpenClaw: make agent MSG="What workflows are running?"
+agent: ## Send a message to ZeroClaw: make agent MSG="What workflows are running?"
 	@[ -n "$(MSG)" ] || (echo "ERROR: MSG required. Usage: make agent MSG=\"...\"" && exit 1)
-	$(VM_SSH) "openclaw chat '$(MSG)'"
+	$(VM_SSH) "zeroclaw agent -m '$(MSG)'"
 
 .PHONY: agent-status
-agent-status: ## Check OpenClaw status in VM
-	$(VM_SSH) "openclaw status" 2>/dev/null || echo "OpenClaw unreachable in VM"
+agent-status: ## Check ZeroClaw status in VM
+	$(VM_SSH) "zeroclaw status" 2>/dev/null || echo "ZeroClaw unreachable in VM"
 
 .PHONY: sync-logs
-sync-logs: ## Start OpenClaw log sync from VM in background (feeds Grafana Alloy)
-	@mkdir -p data/openclaw-logs
-	@# Kill any existing sync process
-	@pkill -f "sync-openclaw-logs.sh" 2>/dev/null || true
+sync-logs: ## Start ZeroClaw log sync from VM in background (feeds Grafana Alloy)
+	@mkdir -p data/zeroclaw-logs
+	@pkill -f "sync-zeroclaw-logs.sh" 2>/dev/null || true
 	@sleep 1
-	@echo "Starting OpenClaw log sync in background..."
-	@nohup bash scripts/sync-openclaw-logs.sh > /tmp/sync-openclaw-logs.log 2>&1 &
-	@echo "  Log sync started (PID: $$!). Logs: /tmp/sync-openclaw-logs.log"
+	@echo "Starting ZeroClaw log sync in background..."
+	@nohup bash scripts/sync-zeroclaw-logs.sh > /tmp/sync-zeroclaw-logs.log 2>&1 &
+	@echo "  Log sync started (PID: $$!). Logs: /tmp/sync-zeroclaw-logs.log"
 
 .PHONY: sync-logs-stop
-sync-logs-stop: ## Stop the background OpenClaw log sync
-	@pkill -f "sync-openclaw-logs.sh" 2>/dev/null && echo "Log sync stopped." || echo "Log sync not running."
+sync-logs-stop: ## Stop the background ZeroClaw log sync
+	@pkill -f "sync-zeroclaw-logs.sh" 2>/dev/null && echo "Log sync stopped." || echo "Log sync not running."
 
 # =============================================================================
 # Cloudflare Tunnel (native macOS process, not Docker)
-# Runs on the host so localhost:18789 reaches the Parallels NAT-forwarded
-# OpenClaw gateway, and localhost:5678 reaches n8n's published port.
+# Runs on the host so localhost:42617 reaches the Parallels NAT-forwarded
+# ZeroClaw gateway, and localhost:5678 reaches n8n's published port.
 # =============================================================================
 
 .PHONY: cloudflared-start
@@ -629,7 +653,7 @@ cloudflared-stop: ## Stop the background cloudflared process
 # Internal Targets (called by other targets)
 ###############################################################################
 
-# (docker-up, vm-provision-openclaw, vm-setup-openclaw are defined above)
+# (docker-up, vm-provision-zeroclaw, vm-setup-zeroclaw are defined above)
 
 ###############################################################################
 # Website Factory

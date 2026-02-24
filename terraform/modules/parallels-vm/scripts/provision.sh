@@ -1,7 +1,7 @@
 #!/bin/bash
 ###############################################################################
 # VM Bootstrap Script
-# Installs Docker, Node.js 22, OpenClaw, and system utilities.
+# Installs Docker, Rust, ZeroClaw, and system utilities.
 # Called by Terraform post_processor_script.
 ###############################################################################
 set -euo pipefail
@@ -21,24 +21,23 @@ sudo usermod -aG docker "$USER"
 echo "Installing Docker Compose plugin..."
 sudo apt-get install -y docker-compose-plugin
 
-# Node.js 22 (for OpenClaw)
-echo "Installing Node.js 22..."
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt-get install -y nodejs
+# Rust (for ZeroClaw)
+echo "Installing Rust..."
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
 
 # System utilities
 echo "Installing utilities..."
-sudo apt-get install -y jq git curl make rsync
+sudo apt-get install -y jq git curl make rsync build-essential pkg-config libssl-dev
 
-# OpenClaw
-echo "Installing OpenClaw..."
-sudo npm install -g openclaw@latest
+# ZeroClaw
+echo "Installing ZeroClaw..."
+cargo install zeroclaw
 
 # Create project directory
 mkdir -p /home/parallels/n8n
 
 echo "=== VM Provisioning Complete ==="
 echo "Docker: $(docker --version)"
-echo "Node.js: $(node --version)"
-echo "npm: $(npm --version)"
-echo "OpenClaw: $(openclaw --version 2>/dev/null || echo 'installed')"
+echo "Rust: $(rustc --version 2>/dev/null || echo 'installed')"
+echo "ZeroClaw: $(zeroclaw --version 2>/dev/null || echo 'installed')"

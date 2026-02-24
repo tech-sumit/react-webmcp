@@ -18,8 +18,8 @@ Data Sources -> Grafana Alloy (collector) -> Grafana Cloud (storage + dashboards
 | node-exporter | VM system metrics | Alloy scrape |
 | prldevops API | Parallels VM metrics | Alloy scrape |
 | Docker containers | Stdout/stderr logs | Alloy Docker log discovery |
-| OpenClaw gateway | JSONL logs | Alloy file tail |
-| OpenClaw telemetry | JSONL events | Alloy file tail |
+| ZeroClaw gateway | JSONL logs | Alloy file tail |
+| ZeroClaw telemetry | JSONL events | Alloy file tail |
 
 ### Grafana Cloud (Free Tier)
 
@@ -50,7 +50,7 @@ Five pre-built dashboards auto-provisioned from version-controlled JSON:
 - VM memory usage gauge
 - VM disk usage gauge
 
-### 3. OpenClaw Agent Activity (`openclaw-agent`)
+### 3. ZeroClaw Agent Activity (`zeroclaw-agent`)
 - Tool call frequency
 - Tool call duration (average by tool)
 - LLM token usage over time
@@ -92,13 +92,13 @@ make alerts-push        # Push all alert rules
 | ContainerRestarting | Restarts > 3 in 15min | warning |
 | PostgresDown | Unreachable for 1min | critical |
 
-### OpenClaw (4 rules)
+### ZeroClaw (4 rules)
 | Alert | Condition | Severity |
 |-------|-----------|----------|
-| OpenClawGatewayDown | Unreachable for 2min | critical |
-| OpenClawHighLLMCost | Cost > $10/hour | warning |
-| OpenClawToolFailureSpike | Failure rate > 30% for 5min | warning |
-| OpenClawHighTokenBurn | Tokens > 500k/hour | warning |
+| ZeroClawGatewayDown | Unreachable for 2min | critical |
+| ZeroClawHighLLMCost | Cost > $10/hour | warning |
+| ZeroClawToolFailureSpike | Failure rate > 30% for 5min | warning |
+| ZeroClawHighTokenBurn | Tokens > 500k/hour | warning |
 
 ### Parallels Desktop (5 rules)
 | Alert | Condition | Severity |
@@ -163,7 +163,7 @@ curl -s -G \
 
 ## AI Agent Observability
 
-The OpenClaw agent can query all observability data via the `observe` skill:
+The ZeroClaw agent can query all observability data via the `observe` skill:
 
 ```
 "How many workflows failed today?"
@@ -174,7 +174,7 @@ The OpenClaw agent can query all observability data via the `observe` skill:
 "Which tool calls are failing?"
 ```
 
-See `openclaw/workspace/skills/observe/SKILL.md` for the complete query reference.
+See `zeroclaw/workspace/skills/observe/SKILL.md` for the complete query reference.
 
 ## Configuration
 

@@ -1,0 +1,122 @@
+---
+# Observability: node-exporter for VM system metrics + zeroclaw systemd services
+
+# ---------------------------------------------------------------------------
+# prometheus-node-exporter: VM system metrics (CPU, memory, disk, network)
+# ---------------------------------------------------------------------------
+- name: Install prometheus-node-exporter
+  ansible.builtin.apt:
+    name: prometheus-node-exporter
+    state: present
+    update_cache: true
+
+- name: Enable and start prometheus-node-exporter
+  ansible.builtin.systemd:
+    name: prometheus-node-exporter
+    state: started
+    enabled: true
+
+- name: Allow node-exporter port from Parallels host subnet only
+  community.general.ufw:
+    rule: allow
+    port: '9100'
+    proto: tcp
+    src: '10.211.55.0/24'
+    comment: 'prometheus-node-exporter (Parallels host only)'
+
+# ---------------------------------------------------------------------------
+# ZeroClaw gateway systemd service (system-level, auto-restarts on failure)
+# ---------------------------------------------------------------------------
+- name: Create zeroclaw-gateway systemd service file
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/zeroclaw-gateway.service
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=ZeroClaw AI Gateway
+      After=network.target
+      Wants=network.target
+      StartLimitIntervalSec=0
+
+      [Service]
+      Type=simple
+      User={{ zeroclaw_user }}
+      Group={{ zeroclaw_user }}
+      WorkingDirectory={{ zeroclaw_home }}
+      Environment=HOME={{ zeroclaw_home }}
+      Environment=PATH={{ zeroclaw_home }}/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      ExecStart={{ zeroclaw_home }}/.cargo/bin/zeroclaw gateway --port {{ zeroclaw_port }} --host 0.0.0.0
+      Restart=always
+      RestartSec=5
+      StandardOutput=append:{{ zeroclaw_config_dir }}/logs/gateway.log
+      StandardError=append:{{ zeroclaw_config_dir }}/logs/gateway.log
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Reload and restart zeroclaw-gateway
+
+- name: Enable zeroclaw-gateway service (start handled by zeroclaw-setup.sh)
+  ansible.builtin.systemd:
+    name: zeroclaw-gateway
+    daemon_reload: true
+    enabled: true
+    state: stopped
+  ignore_errors: true
+
+# ---------------------------------------------------------------------------
+# ZeroClaw browser service (snap Chromium, headless CDP on port 18792)
+# ---------------------------------------------------------------------------
+- name: Install chromium snap
+  community.general.snap:
+    name: chromium
+    state: present
+
+- name: Create browser user-data directory
+  ansible.builtin.file:
+    path: "{{ zeroclaw_home }}/browser-data"
+    state: directory
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    mode: '0755'
+
+- name: Create zeroclaw-browser systemd service file
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/zeroclaw-browser.service
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=ZeroClaw Browser (Chromium CDP)
+      After=network.target
+      Before=zeroclaw-gateway.service
+
+      [Service]
+      Type=simple
+      User={{ zeroclaw_user }}
+      Group={{ zeroclaw_user }}
+      ExecStart=/snap/bin/chromium \
+        --headless \
+        --no-sandbox \
+        --disable-gpu \
+        --disable-dev-shm-usage \
+        --remote-debugging-port=18792 \
+        --remote-debugging-address=0.0.0.0 \
+        --user-data-dir={{ zeroclaw_home }}/browser-data \
+        about:blank
+      Restart=on-failure
+      RestartSec=5
+      StandardOutput=append:{{ zeroclaw_config_dir }}/logs/browser.log
+      StandardError=append:{{ zeroclaw_config_dir }}/logs/browser.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Enable and start zeroclaw-browser service
+  ansible.builtin.systemd:
+    name: zeroclaw-browser
+    daemon_reload: true
+    enabled: true
+    state: started

@@ -148,7 +148,7 @@ check_vault_secret() {
 if [[ -n "${VAULT_TOKEN}" ]]; then
   check_vault_secret "secret/data/n8n/github" "GitHub token" "already set"
   check_vault_secret "secret/data/n8n/cloudflare" "Cloudflare API token" "already set"
-  check_vault_secret "secret/data/n8n/openclaw" "Anthropic API key" "already set"
+  check_vault_secret "secret/data/n8n/zeroclaw" "Anthropic API key" "already set"
   check_vault_secret "secret/data/n8n/google-places" "Google Places API key" "new — needed"
   check_vault_secret "secret/data/n8n/openai" "OpenAI API key" "new — needed"
   check_vault_secret "secret/data/n8n/cursor" "Cursor API key" "new — needed"

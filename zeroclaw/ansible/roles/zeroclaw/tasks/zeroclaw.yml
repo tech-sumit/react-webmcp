@@ -1,0 +1,155 @@
+---
+# ZeroClaw installation -- Rust binary built from source
+
+- name: Ensure zeroclaw home directory exists with correct ownership
+  ansible.builtin.file:
+    path: "{{ zeroclaw_home }}"
+    state: directory
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    mode: '0755'
+
+- name: Create ZeroClaw directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ zeroclaw_config_dir }}", mode: '0755' }
+    - { path: "{{ zeroclaw_config_dir }}/workspace", mode: '0755' }
+    - { path: "{{ zeroclaw_config_dir }}/workspace/skills", mode: '0755' }
+    - { path: "{{ zeroclaw_config_dir }}/logs", mode: '0755' }
+    - { path: "{{ zeroclaw_config_dir }}/state", mode: '0755' }
+    - { path: "{{ zeroclaw_code_dir }}", mode: '0755' }
+
+- name: Check if Rust toolchain is already installed
+  ansible.builtin.stat:
+    path: "{{ zeroclaw_home }}/.cargo/bin/rustc"
+  register: rust_installed
+
+- name: Install Rust toolchain via rustup
+  ansible.builtin.shell:
+    cmd: |
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+        sh -s -- -y --default-toolchain stable --profile minimal
+    executable: /bin/bash
+  become: true
+  become_user: "{{ zeroclaw_user }}"
+  environment:
+    HOME: "{{ zeroclaw_home }}"
+  when: not rust_installed.stat.exists
+
+- name: Verify Rust installation
+  ansible.builtin.shell:
+    cmd: "{{ zeroclaw_home }}/.cargo/bin/rustc --version"
+    executable: /bin/bash
+  become: true
+  become_user: "{{ zeroclaw_user }}"
+  environment:
+    HOME: "{{ zeroclaw_home }}"
+  register: rust_version
+  changed_when: false
+
+- name: Display Rust version
+  ansible.builtin.debug:
+    msg: "Rust installed: {{ rust_version.stdout }}"
+
+- name: Check if ZeroClaw repository already exists
+  ansible.builtin.stat:
+    path: "{{ zeroclaw_repo_dir }}/.git"
+  register: zeroclaw_repo_exists
+
+- name: Clone ZeroClaw repository
+  ansible.builtin.git:
+    repo: "{{ zeroclaw_repo_url }}"
+    dest: "{{ zeroclaw_repo_dir }}"
+    version: "{{ zeroclaw_repo_branch }}"
+    update: true
+  become: true
+  become_user: "{{ zeroclaw_user }}"
+  when: not zeroclaw_repo_exists.stat.exists
+
+- name: Pull latest changes if repo exists
+  ansible.builtin.git:
+    repo: "{{ zeroclaw_repo_url }}"
+    dest: "{{ zeroclaw_repo_dir }}"
+    version: "{{ zeroclaw_repo_branch }}"
+    update: true
+  become: true
+  become_user: "{{ zeroclaw_user }}"
+  when: zeroclaw_repo_exists.stat.exists
+  register: git_pull_result
+
+- name: Build ZeroClaw from source (release mode)
+  ansible.builtin.shell:
+    cmd: "{{ zeroclaw_home }}/.cargo/bin/cargo build --release --locked"
+    chdir: "{{ zeroclaw_repo_dir }}"
+    executable: /bin/bash
+  become: true
+  become_user: "{{ zeroclaw_user }}"
+  environment:
+    HOME: "{{ zeroclaw_home }}"
+    PATH: "{{ zeroclaw_home }}/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  register: cargo_build_result
+  changed_when: true
+
+- name: Check if release binary exists
+  ansible.builtin.stat:
+    path: "{{ zeroclaw_repo_dir }}/target/release/zeroclaw"
+  register: zeroclaw_binary
+
+- name: Fail if build didn't produce binary
+  ansible.builtin.fail:
+    msg: "Build failed - release binary not found at {{ zeroclaw_repo_dir }}/target/release/zeroclaw"
+  when: not zeroclaw_binary.stat.exists
+
+- name: Install ZeroClaw binary to cargo bin
+  ansible.builtin.copy:
+    src: "{{ zeroclaw_repo_dir }}/target/release/zeroclaw"
+    dest: "{{ zeroclaw_home }}/.cargo/bin/zeroclaw"
+    remote_src: true
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    mode: '0755'
+
+- name: Verify ZeroClaw installation
+  ansible.builtin.shell:
+    cmd: "{{ zeroclaw_home }}/.cargo/bin/zeroclaw --version"
+    executable: /bin/bash
+  become: true
+  become_user: "{{ zeroclaw_user }}"
+  environment:
+    HOME: "{{ zeroclaw_home }}"
+  register: zeroclaw_version
+  changed_when: false
+
+- name: Display ZeroClaw version
+  ansible.builtin.debug:
+    msg: |
+      ZeroClaw installed from source: {{ zeroclaw_version.stdout }}
+      Repository: {{ zeroclaw_repo_dir }}
+      Binary: {{ zeroclaw_home }}/.cargo/bin/zeroclaw
+
+- name: Add development aliases to .bashrc
+  ansible.builtin.blockinfile:
+    path: "{{ zeroclaw_home }}/.bashrc"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - ZeroClaw development"
+    block: |
+      export ZEROCLAW_DEV_DIR="{{ zeroclaw_repo_dir }}"
+      alias zeroclaw-rebuild='cd {{ zeroclaw_repo_dir }} && cargo build --release --locked'
+      alias zeroclaw-dev='cd {{ zeroclaw_repo_dir }}'
+      alias zeroclaw-pull='cd {{ zeroclaw_repo_dir }} && git pull && cargo build --release --locked'
+    create: true
+    owner: "{{ zeroclaw_user }}"
+    group: "{{ zeroclaw_user }}"
+    mode: '0644'
+
+- name: Display configuration note
+  ansible.builtin.debug:
+    msg: |
+      ZeroClaw is installed but NOT configured yet.
+      Next steps (run as zeroclaw user or via zeroclaw-setup.sh):
+      1. Run onboarding: zeroclaw onboard
+      2. Or write config.toml directly to ~/.zeroclaw/config.toml

@@ -1,6 +1,8 @@
 # Website Factory
 
-AI-powered automated website generation pipeline. Submits business details via n8n form → enriches with Google Places → generates content (Claude) → builds design spec → generates Astro site (Claude API) → publishes to GitHub Pages with Decap CMS.
+AI-powered automated website generation pipeline with integrated Google Maps scraping, existing website analysis, and Claude Vision image classification.
+
+**Pipeline:** Job config (with optional Google Maps URL) → scrape business data & photos → analyze existing website → classify images with AI → generate content (Claude) → build design spec with real image assignments → generate Astro site (Claude API) → validate → publish to GitHub Pages with Pages CMS at `cms.panditai.org`.
 
 ## Quick Start
 
@@ -15,41 +17,69 @@ make wf-push-template
 cd projects/website-factory/base-template && git add -A && git commit -m "Base template" && git push -u origin main
 
 # 3. Configure .env
-# ANTHROPIC_API_KEY (or OPENCLAW_API_KEY)
+# ANTHROPIC_API_KEY (or ZEROCLAW_API_KEY)
 # GITHUB_TOKEN
 # GITHUB_OWNER=tech-sumit
 
-# 4. Test
-make wf-test          # Opens form in browser
+# 4. Run a job
+cd projects/website-factory
+./scripts/run-job.sh jobs/mafia-family-kitchen.json            # Full pipeline
+./scripts/run-job.sh jobs/mafia-family-kitchen.json --dry-run  # Skip GitHub push
 ```
+
+## Pipeline Steps
+
+| Step | Script | Description |
+|------|--------|-------------|
+| 1 | `scrape-gmaps.sh` | Scrape Google Maps listing via Docker (`gosom/google-maps-scraper`) — extracts business data, photos, reviews, hours |
+| 2 | `scrape-website.sh` | Analyze existing website — extract nav, colors, content, images |
+| 3 | `classify-images.sh` | Classify all images with Claude Vision — category, quality score, placement recommendations |
+| 4 | `run-job.sh` | Generate content via Claude API (enriched with real data and image manifest) |
+| 5 | `run-job.sh` | Build design specification with actual image assignments |
+| 6 | `run-job.sh` | Generate Astro site code via Claude API with real `<img>` tags |
+| 7 | `run-job.sh` | Validate (files, imports, image references) |
+| 8 | `run-job.sh` | Push to GitHub + enable GitHub Pages |
+
+Steps 1-3 are conditional — they only run when `google_maps_url` or `existing_website` are in the job config. Without them, the pipeline skips to step 4.
+
+## Job Config Schema
+
+```json
+{
+  "project_id": "unique-id",
+  "business_name": "My Business",
+  "repo_slug": "my-business",
+  "category": "restaurant",
+  "style_preset": "modern-dark",
+  "primary_color": "#B91C1C",
+  "google_maps_url": "https://www.google.com/maps/place/...",
+  "existing_website": "https://mybusiness.com",
+  "skip_scrape": false,
+  "description": "Business description...",
+  "address": "123 Main St",
+  "extra_context": "Additional instructions for AI...",
+  "extra_components": "- src/components/Menu.astro"
+}
+```
+
+Key fields: `google_maps_url` triggers Google Maps scraping, `existing_website` triggers website analysis, `skip_scrape` bypasses both.
 
 ## Project Structure
 
 | Path | Purpose |
 |------|---------|
+| `scripts/run-job.sh` | Main 8-step pipeline |
+| `scripts/scrape-gmaps.sh` | Google Maps scraper (Docker wrapper) |
+| `scripts/scrape-website.sh` | Existing website analyzer |
+| `scripts/classify-images.sh` | Claude Vision image classifier |
+| `jobs/*.json` | Job configuration files |
+| `base-template/` | Astro + Tailwind scaffold with `.pages.yml` for Pages CMS |
 | `workflow.json` | n8n pipeline (35 nodes) |
-| `base-template/` | Astro + Tailwind + Decap CMS scaffold |
-| `db/schema.sql` | SQLite schema (reference; workflow uses JSON store) |
-| `scripts/setup.sh` | One-time setup (DB, Vault, template verification) |
-| `scripts/generate-site.sh` | Claude Code CLI wrapper (standalone use) |
-| `scripts/dry-run.sh` | Test content + optional site generation locally |
 | `prompts/` | AI prompt templates |
 
 ## Data Storage
 
 The workflow uses **file-based JSON storage** at `data/n8n/website-factory/projects.json` (no SQLite in n8n container). Project state is keyed by `project_id`.
-
-## Dry Run (Local Testing)
-
-Test content generation without n8n:
-
-```bash
-cd projects/website-factory
-ANTHROPIC_API_KEY=your_key ./scripts/dry-run.sh           # Content only
-ANTHROPIC_API_KEY=your_key ./scripts/dry-run.sh --site     # Content + site gen
-```
-
-Output: `/tmp/website-factory-dry-run/content.json` and optionally `site-files.json`.
 
 ## Makefile Targets
 
@@ -62,11 +92,16 @@ Output: `/tmp/website-factory-dry-run/content.json` and optionally `site-files.j
 
 ## Required Environment Variables
 
-- `ANTHROPIC_API_KEY` — Content + site generation (fallback: OPENCLAW_API_KEY)
+- `ANTHROPIC_API_KEY` — Content + site generation + image classification (fallback: ZEROCLAW_API_KEY)
 - `GITHUB_TOKEN` — Create repos, push code, enable Pages
 - `GITHUB_OWNER` — GitHub org/username (default: tech-sumit)
 
 ## Optional
 
-- `GOOGLE_PLACES_API_KEY` — Real enrichment (falls back to mock data)
 - `SENDGRID_API_KEY` — Client email notifications
+
+## Prerequisites
+
+- Docker (for Google Maps scraper)
+- `python3`, `curl`, `jq` (for pipeline scripts)
+- `npm` (for generating package-lock.json)

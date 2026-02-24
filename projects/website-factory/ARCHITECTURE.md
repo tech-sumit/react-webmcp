@@ -3,7 +3,7 @@
 > AI-powered automated website pipeline built on the existing n8n infrastructure.
 > Each site is **uniquely designed by AI** — Claude generates a detailed design
 > specification, then the Claude API builds the actual Astro components on top
-> of a base template with Decap CMS and GitHub Actions pre-configured.
+> of a base template with Pages CMS and GitHub Actions pre-configured.
 >
 > **Implementation note (Feb 2026):** The original design referenced OpenAI Image API
 > for mockup generation and Cursor CLI for code generation. The implemented pipeline
@@ -12,6 +12,12 @@
 > in a JSON file (not SQLite) for n8n container compatibility. Sections below marked
 > with "*(original design)*" describe the initial architecture; the workflow.json
 > reflects the actual implementation.
+>
+> **Enhanced pipeline (Feb 2026):** Added Google Maps scraping via
+> `gosom/google-maps-scraper` (Docker), existing website analysis, and Claude Vision
+> image classification. The pipeline now runs 8 steps: scrape → analyze → classify →
+> content → design → code → validate → push. Real photos and business data are
+> automatically extracted and integrated into generated websites.
 
 ---
 
@@ -27,7 +33,7 @@ fundamentally different approach:
 2. **AI writes the code** — Claude API receives the design spec + content JSON + a
    detailed prompt and generates all Astro components on top of a base scaffold.
 3. **Every site is unique** — no two businesses get the same layout, just shared
-   infrastructure (Decap CMS, GitHub Actions, deploy pipeline).
+   infrastructure (Pages CMS, GitHub Actions, deploy pipeline).
 
 ### Design Inspirations
 
@@ -63,7 +69,7 @@ This design brief is fed to the Claude API which generates all the actual page c
 | HashiCorp Vault       | Ready  | KV v2 secrets engine, n8n external secrets integration        |
 | PostgreSQL            | Ready  | Running in Docker, available for metadata storage             |
 | Grafana Cloud         | Ready  | Metrics + Logs + Dashboards for observability                 |
-| OpenClaw AI Agent     | Ready  | LLM-powered agent with n8n/vault/terraform skills             |
+| ZeroClaw AI Agent     | Ready  | LLM-powered agent with n8n/vault/terraform skills             |
 | Terraform             | Ready  | Modules: Cloudflare, GitHub, S3, Parallels VM                 |
 | Makefile CLI          | Ready  | 30+ targets for lifecycle, workflows, secrets, terraform      |
 
@@ -71,51 +77,52 @@ This design brief is fed to the Claude API which generates all the actual page c
 
 ## System Architecture Overview
 
+### Enhanced 8-Step Pipeline
+
 ```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                         WEBSITE FACTORY PIPELINE                                 │
-├──────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  ┌──────────────┐    ┌───────────────────────────────────────────────────────┐   │
-│  │   INTAKE      │    │              n8n ORCHESTRATION                        │   │
-│  │              │    │                                                       │   │
-│  │  n8n Form    │───▶│  ┌─────────┐  ┌──────────┐  ┌───────────────────┐   │   │
-│  │  Trigger     │    │  │Validate │─▶│ Enrich   │─▶│ AI Content Gen    │   │   │
-│  │  (webhook)   │    │  │ Input   │  │ (Google  │  │ (Claude API)      │   │   │
-│  └──────────────┘    │  └─────────┘  │  Places) │  └────────┬──────────┘   │   │
-│                      │               └──────────┘           │              │   │
-│                      │                              ┌───────▼────────────┐  │   │
-│                      │                              │ DESIGN SPEC        │  │   │
-│                      │                              │ (Claude API)       │  │   │
-│                      │                              │ → Design brief MD  │  │   │
-│                      │                              └───────┬────────────┘  │   │
-│                      │                                      │              │   │
-│                      │  ┌───────────────────────────────────▼───────────┐  │   │
-│                      │  │          AI SITE GENERATION                   │  │   │
-│                      │  │                                              │  │   │
-│                      │  │  Clone Base Template (Decap CMS scaffold)    │  │   │
-│                      │  │  → Claude API: design spec + prompt + content│  │   │
-│                      │  │  → Generates pages, components, styles       │  │   │
-│                      │  │  → Git commit all generated code             │  │   │
-│                      │  └──────────────────────────┬───────────────────┘  │   │
-│                      │                             │                      │   │
-│                      │  ┌──────────────────────────▼───────────────────┐  │   │
-│                      │  │     PUBLISH & HANDOVER                       │  │   │
-│                      │  │                                              │  │   │
-│                      │  │  Push to GitHub → Enable Pages →             │  │   │
-│                      │  │  Cloudflare DNS → Wait for GH Actions →     │  │   │
-│                      │  │  Verify Live → Email Client (CMS access)    │  │   │
-│                      │  └──────────────────────────────────────────────┘  │   │
-│                      └───────────────────────────────────────────────────────┘   │
-│                                                                                  │
-│  ┌───────────────────────────────────────────────────────────────────────────┐   │
-│  │                     SUPPORTING SERVICES                                   │   │
-│  │                                                                           │   │
-│  │  JSON Store ─── Vault ─── Cloudflare ─── GitHub ─── Claude (Anthropic)  │   │
-│  └───────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                  │
-└──────────────────────────────────────────────────────────────────────────────────┘
+Job Config JSON
+    │
+    ▼
+┌─ Parse Job Config ─────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  Step 1: Scrape Google Maps ──┐                                                │
+│  (gosom/google-maps-scraper)  │                                                │
+│  → business data, images,     ├──▶  Step 3: Download + Classify Images         │
+│    reviews, hours, phone      │     (Claude Vision API)                        │
+│                               │     → category, placement, quality score       │
+│  Step 2: Analyze Existing     │     → image-manifest.json                      │
+│  Website (curl + python3)    ─┘                                                │
+│  → nav, colors, content,                                                       │
+│    structure                          │                                        │
+│                                       ▼                                        │
+│  Step 4: Generate Content ◀── enriched with GMaps data + image manifest       │
+│  (Claude API)                  + website analysis                              │
+│  → content.json with real                                                      │
+│    data, image references             │                                        │
+│                                       ▼                                        │
+│  Step 5: Build Design Spec ◀── image assignments (hero, gallery, menu)        │
+│  → design-spec.md                                                              │
+│                                       │                                        │
+│                                       ▼                                        │
+│  Step 6: Generate Site Code (Claude API)                                       │
+│  → Astro components with real <img> tags                                       │
+│                                       │                                        │
+│                                       ▼                                        │
+│  Step 7: Validate (files, imports, image references)                           │
+│                                       │                                        │
+│                                       ▼                                        │
+│  Step 8: Push to GitHub + Enable Pages                                         │
+│  → Images ship in initial commit (atomic deploy)                               │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+Supporting Services:
+  JSON Store ─── Vault ─── Cloudflare ─── GitHub ─── Claude (Anthropic)
+  Docker (gmaps-scraper) ─── Pages CMS (cms.panditai.org)
 ```
+
+Steps 1-3 are conditional — they only run when `google_maps_url` or `existing_website`
+are present in the job config. Without them, the pipeline runs steps 4-8 exactly as before.
 
 ---
 
@@ -177,42 +184,71 @@ No external UI framework needed for MVP — n8n Form Trigger provides a hosted f
 
 ---
 
-### Layer 3: Data Enrichment (n8n HTTP Request Nodes)
+### Layer 3: Data Enrichment (Google Maps Scraper + Website Analysis)
 
-**Uses:** Google Places API (New) via n8n HTTP Request node
+Enrichment now uses two independent scrapers — no API keys required for data extraction.
 
-**API calls (sequential):**
+#### 3a. Google Maps Scraper (`scripts/scrape-gmaps.sh`)
 
-1. **Place Details** — `GET https://places.googleapis.com/v1/places/{place_id}`
-   - Fields: `displayName, formattedAddress, internationalPhoneNumber, regularOpeningHours, reviews, photos, websiteUri, googleMapsUri, rating, userRatingCount, types`
+**Uses:** `gosom/google-maps-scraper` via Docker — headless browser scraper that extracts
+33+ fields from any Google Maps listing URL.
 
-2. **Place Photos** (loop) — `GET https://places.googleapis.com/v1/{photo_name}/media`
-   - Download top 5-10 photos
-   - Upload to GitHub repo `/public/images/` later
+**Invocation:** Pass a Google Maps URL → Docker container scrapes the listing → outputs JSON.
 
-**Secrets:** Google Places API key stored in Vault at `secret/data/n8n/google-places`
+**Extracted data:**
+- Business name, phone, address, hours, rating, review count
+- Categories, about/highlights, atmosphere, offerings
+- All image URLs (upgraded to high-res `w1200-h800`)
+- User reviews (for authentic testimonials)
+- Reservation links (Zomato, Swiggy, etc.)
 
-**Enriched data output:**
+**Output:** `gmaps-data.json` (raw) + `gmaps-enrichment.json` (normalized) + `images/gmaps/` (downloaded photos)
 
+**Runtime:** ~30s per listing. No API key needed.
+
+#### 3b. Website Analyzer (`scripts/scrape-website.sh`)
+
+**Uses:** `curl` + `python3` HTML parser — lightweight, no headless browser needed.
+
+**Extracted data:**
+- Text content, navigation structure
+- Color palette (from inline CSS/styles)
+- Meta tags (title, description, OG images)
+- Internal page URLs
+- Key images (logo, hero, gallery) — up to 15
+
+**Output:** `website-analysis.json` + `images/website/` (downloaded images)
+
+#### 3c. Image Classifier (`scripts/classify-images.sh`)
+
+**Uses:** Claude Vision API (claude-sonnet-4) — base64-encoded images sent in a single API call.
+
+**Per-image classification:**
 ```json
 {
-  "address": { "street": "...", "city": "...", "state": "...", "zip": "...", "country": "..." },
-  "phone": "+1-555-123-4567",
-  "hours": { "monday": "9:00 AM – 9:00 PM", ... },
-  "rating": 4.5,
-  "review_count": 128,
-  "top_reviews": [ { "author": "...", "text": "...", "rating": 5 }, ... ],
-  "photos": [ { "url": "...", "width": 4032, "height": 3024 }, ... ],
-  "coordinates": { "lat": 40.7128, "lng": -74.0060 },
-  "categories": ["restaurant", "italian_restaurant"]
+  "filename": "rooftop.jpg",
+  "category": "interior",
+  "subject": "Rooftop restaurant with city skyline view at dusk",
+  "quality": 9,
+  "placement": ["hero", "gallery"],
+  "mood": "atmospheric"
 }
 ```
+
+- `category`: food, drink, interior, exterior, team, rooftop-view, menu, logo, ambiance, event, decor, signage
+- `placement`: where it should be used — hero, gallery, about, services, menu, testimonials-bg, footer, header
+- `quality`: 1-10 score (blurry/bad vs crisp/professional)
+- Images with quality < 5 are filtered out
+
+**Output:** `image-manifest.json` — fed into content generation and design spec prompts.
+
+**Cost:** ~$0.02-0.05 per batch of 10-15 images.
 
 ---
 
 ### Layer 4: AI Content Generation (n8n HTTP Request → Claude)
 
-**Uses:** Anthropic Claude API (via OpenClaw API key already in Vault)
+**Uses:** Anthropic Claude API (via ZeroClaw API key already in Vault)
 
 **n8n implementation:** HTTP Request node calling `https://api.anthropic.com/v1/messages`
 
@@ -376,7 +412,7 @@ website-factory-base/
 │   └── styles/
 │       └── global.css           # CSS reset + base variables only
 ├── public/
-│   ├── admin/                   # ← Decap CMS admin UI (pre-configured)
+│   └── images/                  # ← Media uploads
 │   │   ├── index.html
 │   │   └── config.yml           # ← Generated per-site by n8n
 │   └── images/                  # Business photos placed here
@@ -392,9 +428,9 @@ website-factory-base/
 └── README.md
 ```
 
-**Key point:** The base template has the **deployment pipeline, CMS admin, and project
+**Key point:** The base template has the **deployment pipeline, `.pages.yml` CMS config, and project
 structure** ready — but the actual pages, components, and visual design are generated
-fresh by Cursor CLI for each business.
+fresh by Claude API for each business.
 
 #### 6b. Cursor CLI Invocation (n8n Execute Command Node)
 
@@ -432,7 +468,7 @@ REQUIREMENTS:
 - Read content from content/site.json — DO NOT hardcode any business-specific text
 - Add smooth scroll, subtle animations, and hover effects
 - Ensure Lighthouse score > 90 for performance, accessibility, SEO
-- Keep the public/admin/ directory intact (Decap CMS) — do not modify it
+- Keep the .pages.yml file intact (Pages CMS config) — do not modify it
 - Add proper SEO meta tags, Open Graph tags, and structured data (JSON-LD)
 - Use semantic HTML throughout
 
@@ -441,7 +477,7 @@ STYLE REFERENCES (match this quality level):
 - netlify.cms-demo.wix.dev — clear CTAs, statistics blocks
 - infallible-varahamihira-058515.netlify.app — Tailwind + clean sections
 
-DO NOT create test files. DO NOT modify .github/, public/admin/, or package.json.
+DO NOT create test files. DO NOT modify .github/, .pages.yml, or package.json.
 Focus only on src/ pages, components, styles, and the Layout.
 PROMPT
 )"
@@ -481,8 +517,7 @@ const projectDir = `/tmp/website-factory/${data.project_id}/site`;
 const requiredFiles = [
   'src/pages/index.astro',
   'src/layouts/Layout.astro',
-  'public/admin/index.html',
-  'public/admin/config.yml',
+  '.pages.yml',
   '.github/workflows/deploy.yml',
   'package.json'
 ];
@@ -498,10 +533,10 @@ if (components.length < 3) {
   throw new Error(`Too few components generated (${components.length}), expected 5+`);
 }
 
-// Verify the admin directory wasn't modified
-const adminConfig = fs.readFileSync(`${projectDir}/public/admin/config.yml`, 'utf8');
-if (!adminConfig.includes('backend:')) {
-  throw new Error('Decap CMS config was corrupted');
+// Verify Pages CMS config exists
+const pagesConfig = fs.readFileSync(`${projectDir}/.pages.yml`, 'utf8');
+if (!pagesConfig.includes('content:')) {
+  throw new Error('Pages CMS config was corrupted');
 }
 
 return {
@@ -573,7 +608,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]        # Triggers on Cursor push AND Decap CMS edits
+    branches: [main]        # Triggers on push AND Pages CMS content edits
   workflow_dispatch:
 
 permissions:
@@ -612,135 +647,43 @@ jobs:
 
 ---
 
-### Layer 8: CMS Integration (Decap CMS)
+### Layer 8: CMS Integration (Pages CMS)
 
-**Tool:** [Decap CMS](https://decapcms.org) (formerly Netlify CMS) — open-source Git-based
-CMS that provides a web-based admin UI and commits content changes directly to the GitHub repo.
+**Tool:** [Pages CMS](https://pagescms.org) — self-hosted at `cms.panditai.org` — open-source
+Git-based CMS that provides a central web admin UI and commits content changes directly to
+GitHub repos via the GitHub API.
 
-**Why Decap CMS:**
-- Open-source, no vendor lock-in
+**Why Pages CMS:**
+- Open-source, self-hosted (Docker) — full control
+- Central dashboard for all sites at `cms.panditai.org`
 - Commits directly to Git — triggers GitHub Actions rebuild automatically
-- Rich widget library (strings, markdown, images, lists, objects)
-- Client edits via `/admin/` URL — no separate tool needed
+- Rich field types (strings, rich-text, images, lists, objects, numbers)
 - Version history via Git — full rollback capability
+- No per-site admin UI needed — one CMS manages all repos
 
-**Pre-configured in base template** at `public/admin/`:
+**Pre-configured in base template** at `.pages.yml`:
 
-**`public/admin/index.html`:**
-
-```html
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Content Manager</title>
-  <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
-</head>
-<body>
-  <script>DecapCMS.init();</script>
-</body>
-</html>
-```
-
-**`public/admin/config.yml`** — generated per-site by n8n Code Node:
-
-```yaml
-backend:
-  name: github
-  repo: "${GITHUB_OWNER}/${REPO_SLUG}"
-  branch: main
-  commit_messages:
-    create: 'content: create {{collection}} "{{slug}}"'
-    update: 'content: update {{collection}} "{{slug}}"'
-    delete: 'content: delete {{collection}} "{{slug}}"'
-    uploadMedia: 'media: upload "{{path}}"'
-    deleteMedia: 'media: delete "{{path}}"'
-
-site_url: "https://${GITHUB_OWNER}.github.io/${REPO_SLUG}"
-display_url: "https://${GITHUB_OWNER}.github.io/${REPO_SLUG}"
-
-media_folder: "public/images"
-public_folder: "/images"
-
-collections:
-  - name: "settings"
-    label: "Site Settings"
-    files:
-      - name: "site"
-        label: "Site Configuration"
-        file: "content/site.json"
-        fields:
-          - { label: "Business Name", name: "business_name", widget: "string" }
-          - { label: "Tagline", name: "headline", widget: "string" }
-          - { label: "Phone", name: "phone", widget: "string" }
-          - { label: "Email", name: "email", widget: "string" }
-          - { label: "Address", name: "address", widget: "text" }
-          - { label: "Primary Color", name: "primary_color", widget: "color" }
-          - label: "About"
-            name: "about"
-            widget: "object"
-            fields:
-              - { label: "Title", name: "title", widget: "string" }
-              - { label: "Body", name: "body", widget: "markdown" }
-          - label: "Services"
-            name: "services"
-            widget: "list"
-            fields:
-              - { label: "Title", name: "title", widget: "string" }
-              - { label: "Description", name: "description", widget: "text" }
-              - { label: "Icon", name: "icon", widget: "string", required: false }
-          - label: "FAQ"
-            name: "faq"
-            widget: "list"
-            fields:
-              - { label: "Question", name: "question", widget: "string" }
-              - { label: "Answer", name: "answer", widget: "markdown" }
-          - label: "Testimonials"
-            name: "testimonials"
-            widget: "list"
-            fields:
-              - { label: "Author", name: "author", widget: "string" }
-              - { label: "Quote", name: "quote", widget: "text" }
-              - { label: "Rating", name: "rating", widget: "number", min: 1, max: 5 }
-          - label: "Hours"
-            name: "hours"
-            widget: "object"
-            fields:
-              - { label: "Monday", name: "monday", widget: "string" }
-              - { label: "Tuesday", name: "tuesday", widget: "string" }
-              - { label: "Wednesday", name: "wednesday", widget: "string" }
-              - { label: "Thursday", name: "thursday", widget: "string" }
-              - { label: "Friday", name: "friday", widget: "string" }
-              - { label: "Saturday", name: "saturday", widget: "string" }
-              - { label: "Sunday", name: "sunday", widget: "string" }
-          - label: "SEO"
-            name: "seo"
-            widget: "object"
-            fields:
-              - { label: "Title", name: "title", widget: "string" }
-              - { label: "Description", name: "description", widget: "text" }
-              - { label: "Keywords", name: "keywords", widget: "string" }
-```
+The `.pages.yml` file in each generated repo defines the content schema for Pages CMS.
+It maps the `content/site.json` structure to editable fields. Uses `settings.content.merge: true`
+to preserve the `deploy` object (injected at build time) that is not exposed in the CMS UI.
 
 **Client edit flow:**
 
 ```
-Client visits https://{owner}.github.io/{repo}/admin/
+Client visits https://cms.panditai.org/{owner}/{repo}
   → GitHub OAuth login
-  → Decap CMS admin dashboard
+  → Pages CMS dashboard for this repo
   → Edit business name, services, FAQ, testimonials, etc.
-  → Click "Publish"
-  → Decap CMS commits changes to content/site.json on main branch
+  → Click "Save"
+  → Pages CMS commits changes to content/site.json on main branch
   → GitHub Actions triggers automatically
   → Astro rebuilds with new content
   → GitHub Pages deploys updated site (< 2 min)
 ```
 
-**Authentication:** Decap CMS uses GitHub's OAuth flow. The client needs:
+**Authentication:** Pages CMS uses its own GitHub App OAuth flow. The client needs:
 - A free GitHub account
-- Collaborator access to their repo (added automatically by n8n in Layer 7)
-- An OAuth app registered (one shared app for all Website Factory sites)
+- The "Website Factory - Pages CMS" GitHub App installed on their repo
 
 ---
 
@@ -999,7 +942,7 @@ All API keys stored in Vault under `secret/data/n8n/`:
 | ------------------------------------ | -------------------------- | ------------ |
 | `secret/data/n8n/github`            | `token`, `owner`           | Already set  |
 | `secret/data/n8n/cloudflare`        | `api_token`, `account_id`  | Already set  |
-| `secret/data/n8n/openclaw`          | `api_key` (Anthropic)      | Already set  |
+| `secret/data/n8n/zeroclaw`          | `api_key` (Anthropic)      | Already set  |
 | `secret/data/n8n/google-places`     | `api_key`                  | Optional     |
 | `secret/data/n8n/sendgrid`          | `api_key`                  | Optional     |
 
@@ -1011,7 +954,10 @@ All API keys stored in Vault under `secret/data/n8n/`:
 projects/website-factory/
 ├── ARCHITECTURE.md              # This document
 ├── PROJECT_IDEA.md              # Original project brief
+├── README.md                    # Quick start guide
 ├── workflow.json                # n8n workflow export (main pipeline)
+├── jobs/                        # Job config files
+│   └── mafia-family-kitchen.json  # Example job with google_maps_url
 ├── prompts/
 │   ├── content-generation.md    # Claude prompt for business content
 │   ├── image-mockup.md          # Design spec prompt template (originally for OpenAI)
@@ -1026,13 +972,11 @@ projects/website-factory/
 │   │   │   └── .gitkeep
 │   │   └── styles/
 │   │       └── global.css       # CSS reset only
+│   ├── .pages.yml               # Pages CMS content schema (hero_image, gallery, rating, etc.)
 │   ├── public/
-│   │   ├── admin/
-│   │   │   ├── index.html       # Decap CMS admin UI
-│   │   │   └── config.yml       # Template — n8n fills per site
-│   │   └── images/
+│   │   └── images/              # Real photos placed here by pipeline
 │   ├── content/
-│   │   └── site.json            # Template — n8n fills per site
+│   │   └── site.json            # AI-generated content injected here
 │   ├── .github/
 │   │   └── workflows/
 │   │       └── deploy.yml       # GitHub Actions deploy to Pages
@@ -1043,6 +987,10 @@ projects/website-factory/
 ├── db/
 │   └── schema.sql               # SQLite schema (reference; workflow uses JSON store)
 └── scripts/
+    ├── run-job.sh               # Main 8-step pipeline (scrape → classify → generate → push)
+    ├── scrape-gmaps.sh          # Google Maps scraper (Docker wrapper)
+    ├── scrape-website.sh        # Existing website analyzer (curl + python3)
+    ├── classify-images.sh       # Claude Vision image classifier
     ├── setup.sh                 # One-time setup (data dir, Vault, template repo)
     ├── generate-site.sh         # Claude Code CLI wrapper (standalone use)
     └── dry-run.sh               # Local test: content + optional site generation
@@ -1057,11 +1005,11 @@ projects/website-factory/
 | Intake UI          | **n8n Form Trigger**      | Existing      | No external UI needed for MVP            |
 | Orchestration      | **n8n**                   | Existing      | Main pipeline workflow                   |
 | Data Enrichment    | **Google Places API**     | Optional      | Falls back to mock data from form input  |
-| AI Content         | **Anthropic Claude API**  | Existing key  | Via OPENCLAW_API_KEY / ANTHROPIC_API_KEY  |
+| AI Content         | **Anthropic Claude API**  | Existing key  | Via ZEROCLAW_API_KEY / ANTHROPIC_API_KEY  |
 | AI Design Spec     | **Claude API**            | Existing key  | Text-based design brief (no image gen)   |
 | AI Site Builder    | **Claude API**            | Existing key  | JSON response → Astro component files    |
 | Static Framework   | **Astro + Tailwind CSS**  | New           | Base template at tech-sumit/website-factory-base |
-| CMS                | **Decap CMS**             | New           | Git-based, admin UI at `/admin/`         |
+| CMS                | **Pages CMS**             | Self-hosted   | Git-based, central UI at cms.panditai.org|
 | Storage/State      | **JSON file**             | New           | `projects.json` in n8n data dir          |
 | Secrets            | **HashiCorp Vault**       | Existing      | GitHub + Cloudflare tokens               |
 | Repo Management    | **GitHub API + git CLI**  | Existing      | Token + Terraform module ready           |
@@ -1074,17 +1022,20 @@ projects/website-factory/
 
 ## End-to-End Pipeline Timing
 
-| Stage                          | Duration      | Bottleneck            |
-| ------------------------------ | ------------- | --------------------- |
-| Form intake + validation       | instant       | —                     |
-| Google Places enrichment       | 2-5s          | API latency / mock    |
-| AI content generation (Claude) | 10-20s        | LLM inference         |
-| Design spec generation         | instant       | Code node (text only) |
-| Claude API site generation     | **30-90s**    | **Primary bottleneck**|
-| Git push + GitHub repo setup   | 10-20s        | API calls             |
-| GitHub Actions build + deploy  | 1-3 min       | CI pipeline           |
-| Cloudflare DNS propagation     | 30s-5 min     | DNS TTL               |
-| **Total end-to-end**           | **~3-8 min**  |                       |
+| Stage                              | Duration      | Bottleneck              |
+| ---------------------------------- | ------------- | ----------------------- |
+| Form intake + validation           | instant       | —                       |
+| Step 1: Google Maps scraping       | ~30s          | Docker container + scrape|
+| Step 2: Website analysis           | 5-10s         | curl + image download   |
+| Step 3: Image classification       | 10-20s        | Claude Vision API       |
+| Step 4: AI content generation      | 10-20s        | LLM inference           |
+| Step 5: Design spec generation     | instant       | Code node (text only)   |
+| Step 6: Claude API site generation | **30-90s**    | **Primary bottleneck**  |
+| Step 7: Validation                 | instant       | —                       |
+| Step 8: Git push + GitHub Pages    | 10-20s        | API calls               |
+| GitHub Actions build + deploy      | 1-3 min       | CI pipeline             |
+| **Total (with scraping)**          | **~4-10 min** |                         |
+| **Total (without scraping)**       | **~3-8 min**  |                         |
 
 ---
 
@@ -1095,7 +1046,7 @@ projects/website-factory/
 1. ~~Create SQLite database~~ → Done: JSON file storage in n8n container
 2. Set ANTHROPIC_API_KEY and GITHUB_TOKEN in `.env` → Done
 3. Push base template to `tech-sumit/website-factory-base` → Pending (`make wf-push-template`)
-4. Register a GitHub OAuth app for Decap CMS authentication → Pending
+4. ~~Register a GitHub OAuth app for CMS authentication~~ → Done: Pages CMS at cms.panditai.org
 5. ~~Build and test AI content generation prompt~~ → Done: workflow.json node wf-node-008
 
 ### Phase 2: AI Design Pipeline (Week 2)
@@ -1103,7 +1054,7 @@ projects/website-factory/
 6. ~~Build OpenAI image mockup~~ → Replaced with text-based design spec (Claude-only)
 7. ~~Build Cursor CLI site generation~~ → Replaced with Claude API in workflow
 8. Test full AI pipeline: content → design spec → Claude API → Astro site → deploy
-9. Test Decap CMS: client edits → commit → rebuild → live update
+9. Test Pages CMS: client edits → commit → rebuild → live update
 
 ### Phase 3: n8n Orchestration (Week 3)
 
@@ -1124,13 +1075,14 @@ projects/website-factory/
 
 ## API Rate Limits & Considerations
 
-| API               | Rate Limit              | Cost per Site | Impact                               |
-| ----------------- | ----------------------- | ------------- | ------------------------------------ |
-| GitHub REST API   | 5,000/hr (authenticated)| Free          | ~10 calls per site → 500 sites/hr   |
-| Google Places     | varies by plan          | ~$0.01-0.03   | 1-2 calls per site (optional)        |
-| Anthropic Claude  | varies by tier          | ~$0.05-0.15   | 2 calls per site (content + site gen)|
-| Cloudflare API    | 1,200/5min              | Free          | 2-3 calls per site                   |
-| **Total per site**|                         | **~$0.06-0.20**|                                      |
+| API                    | Rate Limit              | Cost per Site | Impact                               |
+| ---------------------- | ----------------------- | ------------- | ------------------------------------ |
+| GitHub REST API        | 5,000/hr (authenticated)| Free          | ~10 calls per site → 500 sites/hr   |
+| Google Maps Scraper    | N/A (Docker)            | Free          | 1 Docker run per site (~30s)         |
+| Anthropic Claude (text)| varies by tier          | ~$0.05-0.15   | 2 calls (content + site gen)         |
+| Anthropic Claude Vision| varies by tier          | ~$0.02-0.05   | 1 call (image classification)        |
+| Cloudflare API         | 1,200/5min              | Free          | 2-3 calls per site                   |
+| **Total per site**     |                         | **~$0.07-0.25**|                                      |
 
 ---
 
@@ -1141,7 +1093,7 @@ projects/website-factory/
 - Client gets **collaborator** access (not owner) to their repo
 - Cloudflare API token scoped to DNS edit only
 - n8n form accessible via Cloudflare Tunnel (can add auth later)
-- Decap CMS uses GitHub OAuth — no separate credentials stored
+- Pages CMS uses GitHub App OAuth — hosted at cms.panditai.org
 - Claude API site generation runs in isolated `/tmp/` workspace, cleaned after each build
 
 ---

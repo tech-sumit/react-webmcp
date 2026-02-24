@@ -55,8 +55,8 @@ variable "cloudflare_domain" {
   default     = ""
 }
 
-variable "openclaw_subdomain" {
-  description = "Subdomain for OpenClaw gateway (e.g., 'bot-0' for bot-0.panditai.org)"
+variable "zeroclaw_subdomain" {
+  description = "Subdomain for ZeroClaw gateway (e.g., 'bot-0' for bot-0.panditai.org)"
   type        = string
   default     = "bot-0"
 }
@@ -67,8 +67,14 @@ variable "vm_ip" {
   default     = "10.211.55.10"
 }
 
+variable "cms_subdomain" {
+  description = "Subdomain for Pages CMS (e.g., 'cms' for cms.panditai.org)"
+  type        = string
+  default     = "cms"
+}
+
 variable "cloudflare_access_email" {
-  description = "Owner email for Cloudflare Access on OpenClaw gateway"
+  description = "Owner email for Cloudflare Access on ZeroClaw gateway"
   type        = string
   default     = ""
 }

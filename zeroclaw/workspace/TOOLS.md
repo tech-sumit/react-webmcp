@@ -5,7 +5,7 @@
 All operations are available via the `make` CLI. Key commands:
 
 ### Stack Lifecycle
-- `make up` -- Full bootstrap (Terraform + Docker + OpenClaw)
+- `make up` -- Full bootstrap (Terraform + Docker + ZeroClaw)
 - `make start` -- Start existing VM + Docker stack
 - `make stop` -- Stop stack + suspend VM
 - `make down` -- Stop Docker stack (VM stays running)
@@ -68,9 +68,12 @@ All operations are available via the `make` CLI. Key commands:
 - LogQL: `POST {GRAFANA_CLOUD_LOKI_URL}/loki/api/v1/query_range`
 - Auth: Basic auth with `GRAFANA_CLOUD_USER:GRAFANA_CLOUD_API_KEY`
 
-## n8n MCP Tools
+## ZeroClaw CLI
 
-Workflows enabled as MCP tools are directly invocable. Check `openclaw.json` for the MCP server configuration.
+- `zeroclaw agent -m 'MSG'` -- Chat with agent
+- `zeroclaw status` -- System status
+- `zeroclaw doctor` -- Diagnostics
+- `zeroclaw gateway` -- Start gateway server
 
 ## Scripts (Direct)
 

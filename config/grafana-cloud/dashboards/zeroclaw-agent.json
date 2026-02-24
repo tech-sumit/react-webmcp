@@ -1,11 +1,11 @@
 {
   "dashboard": {
     "id": null,
-    "uid": "openclaw-agent",
-    "title": "OpenClaw Agent Activity",
+    "uid": "zeroclaw-agent",
+    "title": "ZeroClaw Agent Activity",
     "description": "Tool calls, LLM usage/cost, session lifecycle, message throughput, failed tools",
     "tags": [
-      "openclaw",
+      "zeroclaw",
       "ai-agent",
       "auto-provisioned"
     ],
@@ -31,7 +31,7 @@
               "type": "loki",
               "uid": "grafanacloud-logs"
             },
-            "expr": "count_over_time({service=\"openclaw\"} |= \"tool end\" [$__interval])",
+            "expr": "count_over_time({service=\"zeroclaw\"} |= \"tool end\" [$__interval])",
             "refId": "A",
             "legendFormat": "Tool Calls"
           }
@@ -56,7 +56,7 @@
               "type": "loki",
               "uid": "grafanacloud-logs"
             },
-            "expr": "sum by (tool) (count_over_time({service=\"openclaw\"} |= \"tool end\" | regexp \"tool=(?P<tool>\\\\w+)\" [$__interval]))",
+            "expr": "sum by (tool) (count_over_time({service=\"zeroclaw\"} |= \"tool end\" | regexp \"tool=(?P<tool>\\\\w+)\" [$__interval]))",
             "refId": "A",
             "legendFormat": "{{tool}}"
           }
@@ -81,7 +81,7 @@
               "type": "loki",
               "uid": "grafanacloud-logs"
             },
-            "expr": "count_over_time({service=\"openclaw\"} |= \"run registered\" [24h])",
+            "expr": "count_over_time({service=\"zeroclaw\"} |= \"run registered\" [24h])",
             "refId": "A",
             "legendFormat": "Sessions (24h)"
           }
@@ -106,7 +106,7 @@
               "type": "loki",
               "uid": "grafanacloud-logs"
             },
-            "expr": "avg_over_time({service=\"openclaw\"} |= \"run done\" | regexp \"durationMs=(?P<duration>\\\\d+)\" | unwrap duration [$__range])",
+            "expr": "avg_over_time({service=\"zeroclaw\"} |= \"run done\" | regexp \"durationMs=(?P<duration>\\\\d+)\" | unwrap duration [$__range])",
             "refId": "A",
             "legendFormat": "Avg Duration (ms)"
           }
@@ -131,7 +131,7 @@
               "type": "loki",
               "uid": "grafanacloud-logs"
             },
-            "expr": "count_over_time({service=\"openclaw\"} | json | _meta_logLevelName=\"WARN\" [$__interval])",
+            "expr": "count_over_time({service=\"zeroclaw\"} | json | _meta_logLevelName=\"WARN\" [$__interval])",
             "refId": "A",
             "legendFormat": "Warnings"
           },
@@ -140,7 +140,7 @@
               "type": "loki",
               "uid": "grafanacloud-logs"
             },
-            "expr": "count_over_time({service=\"openclaw\"} | json | _meta_logLevelName=\"ERROR\" [$__interval])",
+            "expr": "count_over_time({service=\"zeroclaw\"} | json | _meta_logLevelName=\"ERROR\" [$__interval])",
             "refId": "B",
             "legendFormat": "Errors"
           }
@@ -153,7 +153,7 @@
         }
       },
       {
-        "title": "OpenClaw Log Stream",
+        "title": "ZeroClaw Log Stream",
         "type": "logs",
         "datasource": {
           "type": "loki",
@@ -165,7 +165,7 @@
               "type": "loki",
               "uid": "grafanacloud-logs"
             },
-            "expr": "{service=\"openclaw\"}",
+            "expr": "{service=\"zeroclaw\"}",
             "refId": "A"
           }
         ],

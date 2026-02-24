@@ -23,18 +23,18 @@
 - Fixed all 5 dashboard JSONs: added explicit datasource UIDs (`grafanacloud-prom`, `grafanacloud-logs`)
 - Fixed logs-explorer: queries now use `container_name` label, added template variables
 - Fixed parallels-host: replaced missing `parallels_*` metrics with `node_exporter` equivalents
-- Rebuilt openclaw-agent dashboard with LogQL queries matching actual JSONL log format
+- Rebuilt zeroclaw-agent dashboard with LogQL queries matching actual JSONL log format
 - Fixed alert-rules.yaml: datasource UID `grafanacloud-loki` → `grafanacloud-logs`
 
 ### Alert rules provisioned (17 rules)
 - Rewrote provisioner.sh to push individual rules via Grafana provisioning API
 - Provisioner now uses `GRAFANA_CLOUD_ADMIN_TOKEN` (falls back to `GRAFANA_CLOUD_API_KEY`)
-- 8 n8n/infrastructure, 4 OpenClaw, 5 Parallels/host alert rules
+- 8 n8n/infrastructure, 4 ZeroClaw, 5 Parallels/host alert rules
 
-### OpenClaw log forwarding
-- New `scripts/sync-openclaw-logs.sh`: rsyncs VM logs (`~/.openclaw/logs/` + `/tmp/openclaw/`) to host
-- Alloy volume mount `./data/openclaw-logs:/openclaw-logs:ro` for host-side log reading
-- Updated Alloy config to tail from `/openclaw-logs/` instead of VM-internal paths
+### ZeroClaw log forwarding
+- New `scripts/sync-zeroclaw-logs.sh`: rsyncs VM logs (`~/.zeroclaw/logs/` + `/tmp/zeroclaw/`) to host
+- Alloy volume mount `./data/zeroclaw-logs:/zeroclaw-logs:ro` for host-side log reading
+- Updated Alloy config to tail from `/zeroclaw-logs/` instead of VM-internal paths
 
 ## v0.2.0 -- Documentation Consolidation & System State (2026-02-14)
 
@@ -42,7 +42,7 @@
 - Moved `SYSTEM_STATE.md` → `docs/system-state.md`
 - Moved `prompts/` → `docs/prompts/` (4 AI prompt templates)
 - Updated `README.md` with complete documentation index
-- Updated `openclaw/workspace/AGENTS.md` references
+- Updated `zeroclaw/workspace/AGENTS.md` references
 
 ### System state document
 - New `docs/system-state.md`: comprehensive snapshot of architecture, service status, Docker stack, Parallels VM, MCP integration, n8n workflows, Terraform modules, knowledge database stats, known issues, and operational runbook
@@ -54,11 +54,11 @@
 
 ### Infrastructure changes
 - Docker stack moved to macOS host (from VM) for native performance
-- Parallels VM now runs OpenClaw agent exclusively
+- Parallels VM now runs ZeroClaw agent exclusively
 - Fixed n8n execution mode: `queue` → `regular` (no worker service)
 - Fixed node-exporter `rslave` mount for macOS Docker Desktop compatibility
-- Configured OpenClaw gateway with token auth, LAN binding
-- Added n8n and OpenClaw MCP servers to Cursor IDE
+- Configured ZeroClaw gateway with token auth, LAN binding
+- Added n8n and ZeroClaw MCP servers to Cursor IDE
 
 ## v0.1.1 -- Simplification Pass (2026-02-13)
 
@@ -67,7 +67,7 @@ Remove dead code, strip unused features, make startup resilient.
 ### Dead code removed
 - Vault init.sh: removed AppRole auth section (circular in dev mode -- root token used everywhere)
 - health-check.sh: removed duplicate `/api/v1/workflows` check (redundant with `/healthz`)
-- openclaw-setup.sh: removed npm install block (already in Terraform provisioner)
+- zeroclaw-setup.sh: removed npm install block (already in Terraform provisioner)
 
 ### Cloudflare: tunnel only
 - Removed WAF rate limiting ruleset and page rule from cloudflare module
@@ -96,7 +96,7 @@ Full implementation of the AI-native n8n automation system per plan specificatio
 - Docker Compose stack with 9 services: n8n, PostgreSQL, Vault, vault-init, cloudflared, Redis, Alloy, cAdvisor, node-exporter
 - Host Docker Compose for prldevops (Parallels DevOps API)
 - Terraform modules: parallels-vm, cloudflare, s3, github
-- VM provisioning script: Docker, Node.js 22, OpenClaw CLI
+- VM provisioning script: Docker, Node.js 22, ZeroClaw CLI
 
 ### Automation Engine
 - n8n with queue mode (Redis), PostgreSQL persistence, Vault external secrets
@@ -110,12 +110,12 @@ Full implementation of the AI-native n8n automation system per plan specificatio
 
 ### Observability
 - Grafana Alloy relaying metrics + logs to Grafana Cloud
-- 5 pre-built dashboards (n8n, infrastructure, OpenClaw, Parallels, logs)
-- 17 alert rules across n8n, OpenClaw, and Parallels
+- 5 pre-built dashboards (n8n, infrastructure, ZeroClaw, Parallels, logs)
+- 17 alert rules across n8n, ZeroClaw, and Parallels
 - provisioner.sh for idempotent dashboard/alert pushing
 
 ### AI Agent
-- OpenClaw workspace with AGENTS.md, SOUL.md, TOOLS.md
+- ZeroClaw workspace with AGENTS.md, SOUL.md, TOOLS.md
 - 6 custom skills: n8n-manage, n8n-debug, observe, vault-manage, terraform-infra, system-ops
 - MCP integration with n8n
 - 4 prompt templates: workflow-design, workflow-debug, resource-plan, task-decompose
@@ -129,9 +129,9 @@ Full implementation of the AI-native n8n automation system per plan specificatio
 #### Critical
 - n8n Vault auth: added VAULT_TOKEN for dev-mode access; init.sh now extracts AppRole credentials
 - Internal Docker port: VAULT_ADDR hardcoded to port 8200 for inter-container networking (was using external VAULT_PORT variable)
-- Bootstrap ordering: vault-seed now runs inside setup-noninteractive before openclaw-setup.sh
+- Bootstrap ordering: vault-seed now runs inside setup-noninteractive before zeroclaw-setup.sh
 - Cloudflare tunnel: separated tunnel secret (random_id in Terraform) from connector token (JWT for cloudflared); tf-apply auto-updates .env
-- MCP config: openclaw-setup.sh now includes mcp.servers.n8n block in deployed config
+- MCP config: zeroclaw-setup.sh now includes mcp.servers.n8n block in deployed config
 - on_destroy_script: changed from `make down` to `make destroy` per plan
 
 #### Medium
@@ -142,7 +142,7 @@ Full implementation of the AI-native n8n automation system per plan specificatio
 - logs-query: uses basic auth consistent with metrics-query
 - host/docker-compose.yml: port binding changed to 0.0.0.0 for VM accessibility
 - backup.sh: VAULT_ROOT_TOKEN uses :- default to prevent set -u crash
-- openclaw-setup.sh: now sources .env, respects VAULT_PORT
+- zeroclaw-setup.sh: now sources .env, respects VAULT_PORT
 
 #### Cleanup
 - Removed dead Terraform variables (vm_disk_size, vm_user, host_ip, cloudflare_tunnel_token)

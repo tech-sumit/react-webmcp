@@ -154,29 +154,29 @@ loki.process "docker_logs" {
 }
 
 // =============================================================================
-// OpenClaw Log Collection (JSONL files)
+// ZeroClaw Log Collection (JSONL files)
 // =============================================================================
 
-// OpenClaw logs (synced from VM via scripts/sync-openclaw-logs.sh)
-local.file_match "openclaw_logs" {
+// ZeroClaw logs (synced from VM via scripts/sync-zeroclaw-logs.sh)
+local.file_match "zeroclaw_logs" {
   path_targets = [
     {
-      __path__     = "/openclaw-logs/gateway.log",
-      service      = "openclaw",
+      __path__     = "/zeroclaw-logs/gateway.log",
+      service      = "zeroclaw",
     },
     {
-      __path__     = "/openclaw-logs/openclaw-*.log",
-      service      = "openclaw",
+      __path__     = "/zeroclaw-logs/zeroclaw-*.log",
+      service      = "zeroclaw",
     },
   ]
 }
 
-loki.source.file "openclaw_logs" {
-  targets    = local.file_match.openclaw_logs.targets
-  forward_to = [loki.process.openclaw_logs.receiver]
+loki.source.file "zeroclaw_logs" {
+  targets    = local.file_match.zeroclaw_logs.targets
+  forward_to = [loki.process.zeroclaw_logs.receiver]
 }
 
-loki.process "openclaw_logs" {
+loki.process "zeroclaw_logs" {
   stage.json {
     expressions = {
       level     = "level",
@@ -194,20 +194,20 @@ loki.process "openclaw_logs" {
   forward_to = [loki.write.grafana_cloud.receiver]
 }
 
-// OpenClaw telemetry JSONL (synced from VM via scripts/sync-openclaw-logs.sh)
-local.file_match "openclaw_telemetry" {
+// ZeroClaw telemetry JSONL (synced from VM via scripts/sync-zeroclaw-logs.sh)
+local.file_match "zeroclaw_telemetry" {
   path_targets = [{
-    __path__     = "/openclaw-logs/telemetry.jsonl",
-    service      = "openclaw_telemetry",
+    __path__     = "/zeroclaw-logs/telemetry.jsonl",
+    service      = "zeroclaw_telemetry",
   }]
 }
 
-loki.source.file "openclaw_telemetry" {
-  targets    = local.file_match.openclaw_telemetry.targets
-  forward_to = [loki.process.openclaw_telemetry.receiver]
+loki.source.file "zeroclaw_telemetry" {
+  targets    = local.file_match.zeroclaw_telemetry.targets
+  forward_to = [loki.process.zeroclaw_telemetry.receiver]
 }
 
-loki.process "openclaw_telemetry" {
+loki.process "zeroclaw_telemetry" {
   stage.json {
     expressions = {
       event_type = "type",

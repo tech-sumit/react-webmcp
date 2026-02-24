@@ -21,13 +21,13 @@ resource "parallels-desktop_deploy" "devops_api" {
 }
 
 ###############################################################################
-# OpenClaw Ansible Provisioner
+# ZeroClaw Ansible Provisioner
 #
-# Copies the openclaw/ansible playbook to the VM and runs it to install:
+# Copies the zeroclaw/ansible playbook to the VM and runs it to install:
 #   - Docker CE
 #   - Node.js 22
 #   - UFW firewall (SSH + Tailscale only)
-#   - OpenClaw (release or development mode)
+#   - ZeroClaw (release or development mode)
 #
 # Prerequisites (handled by Makefile before `terraform apply`):
 #   - VM is created and running (via `make vm-create`)
@@ -36,7 +36,7 @@ resource "parallels-desktop_deploy" "devops_api" {
 ###############################################################################
 
 locals {
-  ansible_dir = "${path.root}/../openclaw/ansible"
+  ansible_dir = "${path.root}/../zeroclaw/ansible"
 }
 
 resource "null_resource" "ansible_provision" {
@@ -45,7 +45,7 @@ resource "null_resource" "ansible_provision" {
   triggers = {
     # Re-run whenever the playbook or role defaults change
     playbook_hash = filesha256("${local.ansible_dir}/playbook.yml")
-    defaults_hash = filesha256("${local.ansible_dir}/roles/openclaw/defaults/main.yml")
+    defaults_hash = filesha256("${local.ansible_dir}/roles/zeroclaw/defaults/main.yml")
     vm_user       = var.vm_user
     vm_ssh_port   = var.vm_ssh_port
   }

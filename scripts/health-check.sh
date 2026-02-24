@@ -2,8 +2,8 @@
 ###############################################################################
 # health-check.sh -- Stack health verification
 #
-# Runs on the macOS host. Docker stack is local; OpenClaw is in the VM
-# (reachable via localhost:OPENCLAW_PORT port forward).
+# Runs on the macOS host. Docker stack is local; ZeroClaw is in the VM
+# (reachable via localhost:ZEROCLAW_PORT port forward).
 # Exit code: 0 if all healthy, 1 if any unhealthy.
 ###############################################################################
 set -euo pipefail
@@ -21,7 +21,7 @@ fi
 
 N8N_URL="http://localhost:${N8N_PORT:-5678}"
 VAULT_URL="http://localhost:${VAULT_PORT:-8200}"
-OPENCLAW_URL="http://localhost:${OPENCLAW_PORT:-18789}"
+ZEROCLAW_URL="http://localhost:${ZEROCLAW_PORT:-42617}"
 HEALTHY=true
 
 # Colors
@@ -122,13 +122,13 @@ else
 fi
 echo ""
 
-# --- OpenClaw (in VM, via port forward) ---
-echo "OpenClaw (VM):"
-oc_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "${OPENCLAW_URL}" 2>/dev/null || echo "000")
+# --- ZeroClaw (in VM, via port forward) ---
+echo "ZeroClaw (VM):"
+oc_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "${ZEROCLAW_URL}" 2>/dev/null || echo "000")
 if [ "$oc_code" != "000" ]; then
-  check "OpenClaw gateway" "OK (HTTP ${oc_code})"
+  check "ZeroClaw gateway" "OK (HTTP ${oc_code})"
 else
-  check "OpenClaw gateway" "FAIL: unreachable at ${OPENCLAW_URL}"
+  check "ZeroClaw gateway" "FAIL: unreachable at ${ZEROCLAW_URL}"
 fi
 echo ""
 

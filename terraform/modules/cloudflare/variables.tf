@@ -20,20 +20,26 @@ variable "n8n_subdomain" {
   default     = "n8n"
 }
 
-variable "openclaw_subdomain" {
-  description = "Subdomain for OpenClaw gateway (e.g., 'bot-0' for bot-0.panditai.org). Avoid underscores -- browsers reject them in HTTP hostnames."
+variable "zeroclaw_subdomain" {
+  description = "Subdomain for ZeroClaw gateway (e.g., 'bot-0' for bot-0.panditai.org). Avoid underscores -- browsers reject them in HTTP hostnames."
   type        = string
   default     = "bot-0"
 }
 
 variable "cloudflare_access_email" {
-  description = "Owner email for Cloudflare Access policy on OpenClaw gateway. When set, creates an Access Application requiring login before reaching the origin."
+  description = "Owner email for Cloudflare Access policy on ZeroClaw gateway. When set, creates an Access Application requiring login before reaching the origin."
   type        = string
   default     = ""
 }
 
+variable "cms_subdomain" {
+  description = "Subdomain for Pages CMS (e.g., 'cms' for cms.panditai.org)"
+  type        = string
+  default     = "cms"
+}
+
 variable "vm_ip" {
-  description = "IP address of the Parallels VM on the shared network (e.g., 10.211.55.10). Used as the origin for the OpenClaw tunnel ingress."
+  description = "IP address of the Parallels VM on the shared network (e.g., 10.211.55.10). Used as the origin for the ZeroClaw tunnel ingress."
   type        = string
   default     = "10.211.55.10"
 }

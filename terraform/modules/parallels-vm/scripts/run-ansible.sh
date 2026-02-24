@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-# run-ansible.sh -- Copy and run the OpenClaw Ansible playbook on the VM
+# run-ansible.sh -- Copy and run the ZeroClaw Ansible playbook on the VM
 #
 # Usage: run-ansible.sh <vm_user> <vm_ssh_port> <ansible_dir>
 #
@@ -14,7 +14,7 @@ ANSIBLE_DIR="${3}"
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${VM_SSH_PORT}"
 
-echo "=== OpenClaw Ansible Provisioning ==="
+echo "=== ZeroClaw Ansible Provisioning ==="
 echo "  VM user:    ${VM_USER}"
 echo "  SSH port:   ${VM_SSH_PORT}"
 echo "  Playbook:   ${ANSIBLE_DIR}"
@@ -23,17 +23,17 @@ echo "  Playbook:   ${ANSIBLE_DIR}"
 # 1. Sync playbook to the VM
 # ---------------------------
 echo ""
-echo "[1/2] Syncing OpenClaw Ansible playbook to VM..."
+echo "[1/2] Syncing ZeroClaw Ansible playbook to VM..."
 rsync -avz --delete --exclude='.git' \
   -e "ssh ${SSH_OPTS}" \
   "${ANSIBLE_DIR}/" \
-  "${VM_USER}@localhost:/tmp/openclaw-ansible/"
+  "${VM_USER}@localhost:/tmp/zeroclaw-ansible/"
 
 # ---------------------------
 # 2. Install Ansible and run playbook on the VM
 # ---------------------------
 echo ""
-echo "[2/2] Running OpenClaw Ansible playbook on VM..."
+echo "[2/2] Running ZeroClaw Ansible playbook on VM..."
 ssh ${SSH_OPTS} "${VM_USER}@localhost" 'bash -s' <<'REMOTE'
 set -euo pipefail
 
@@ -71,17 +71,17 @@ else
   echo "--- VM: Ansible already present ($(ansible --version | head -1))."
 fi
 
-cd /tmp/openclaw-ansible
+cd /tmp/zeroclaw-ansible
 
 echo "--- VM: installing Ansible collections..."
 sudo ansible-galaxy collection install -r requirements.yml --force-with-deps 2>/dev/null || \
   sudo ansible-galaxy collection install -r requirements.yml
 
-echo "--- VM: running OpenClaw playbook..."
+echo "--- VM: running ZeroClaw playbook..."
 sudo ansible-playbook playbook.yml -e ansible_become=false
 
-echo "--- VM: OpenClaw Ansible provisioning complete."
+echo "--- VM: ZeroClaw Ansible provisioning complete."
 REMOTE
 
 echo ""
-echo "=== OpenClaw Ansible Provisioning Complete ==="
+echo "=== ZeroClaw Ansible Provisioning Complete ==="

@@ -34,9 +34,9 @@
    - Free tier: 10k metrics, 50GB logs/month
    - Note: Prometheus URL, Loki URL, instance ID, API key, stack URL
 
-6. **LLM API key** (for OpenClaw AI agent)
+6. **LLM API key** (for ZeroClaw AI agent)
    - Anthropic recommended: https://console.anthropic.com/
-   - Or any provider supported by OpenClaw
+   - Or any provider supported by ZeroClaw
 
 ### Optional
 
@@ -83,8 +83,8 @@ GRAFANA_CLOUD_USER=<instance ID>
 GRAFANA_CLOUD_API_KEY=<from step 5>
 GRAFANA_CLOUD_STACK_URL=https://yourstack.grafana.net
 
-# OpenClaw AI Agent
-OPENCLAW_API_KEY=<from step 6>
+# ZeroClaw AI Agent
+ZEROCLAW_API_KEY=<from step 6>
 ```
 
 ### Step 4: Bootstrap
@@ -96,11 +96,11 @@ make up
 This single command will:
 1. Validate all required environment variables
 2. Initialize and apply Terraform (creates the VM)
-3. Provision the VM with Docker, Node.js, OpenClaw
+3. Provision the VM with Docker, Node.js, ZeroClaw
 4. Sync repo files into the VM
 5. Seed Vault with agent secrets
 6. Start the 9-service Docker Compose stack
-7. Configure OpenClaw agent
+7. Configure ZeroClaw agent
 8. Push dashboards and alerts to Grafana Cloud
 9. Run health checks
 

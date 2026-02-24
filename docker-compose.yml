@@ -2,7 +2,7 @@
 # AI-Native n8n Automation System -- Docker Compose Stack
 #
 # Runs on the macOS host via Docker Desktop.
-# The Parallels VM is only for OpenClaw (AI agent).
+# The Parallels VM is only for ZeroClaw (AI agent).
 # All config flows from .env via ${VAR:-default} syntax.
 ###############################################################################
 
@@ -87,7 +87,7 @@ services:
       - N8N_RESTRICT_FILE_ACCESS_TO=/home/node/.n8n/instagram-downloads;/home/node/.n8n-files;/home/node/.n8n/website-factory;/tmp/website-factory
       # Website Factory (optional)
       - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-${OPENCLAW_API_KEY:-}}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-${ZEROCLAW_API_KEY:-}}
       - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-opus-4-6}
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
       - GITHUB_OWNER=${GITHUB_OWNER:-tech-sumit}
@@ -195,7 +195,7 @@ services:
 
   # ===========================================================================
   # Cloudflare Tunnel
-  # network_mode: host so localhost:18789 (Parallels NAT → VM OpenClaw)
+  # network_mode: host so localhost:42617 (Parallels NAT → VM ZeroClaw)
   # and localhost:5678 (n8n published port) are reachable from cloudflared
   # ===========================================================================
   cloudflared:
@@ -385,7 +385,7 @@ services:
       - ./config/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/log:/var/log:ro
-      - ./data/openclaw-logs:/openclaw-logs:ro
+      - ./data/zeroclaw-logs:/zeroclaw-logs:ro
     command:
       - run
       - /etc/alloy/config.alloy
