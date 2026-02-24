@@ -60,13 +60,13 @@ echo "Writing ZeroClaw config..."
 cat > "${ZEROCLAW_HOME}/config.toml" << EOF
 api_key = "${ZEROCLAW_API_KEY}"
 default_provider = "${ZEROCLAW_MODEL_PROVIDER:-anthropic}"
-default_model = "${ZEROCLAW_MODEL:-anthropic/claude-sonnet-4-20250514}"
+default_model = "${ZEROCLAW_MODEL:-claude-sonnet-4-20250514}"
 default_temperature = 0.7
 
 [gateway]
 port = ${ZEROCLAW_PORT}
 host = "0.0.0.0"
-require_pairing = false
+require_pairing = true
 allow_public_bind = true
 
 [autonomy]
