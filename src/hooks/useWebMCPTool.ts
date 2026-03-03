@@ -62,6 +62,29 @@ export function useWebMCPTool(config: UseWebMCPToolConfig): void {
       return;
     }
 
+    // Per spec: registerTool() throws InvalidStateError if name or description
+    // is the empty string. Validate early with a developer-friendly message.
+    if (!config.name) {
+      throw new Error("[react-webmcp] Tool name must be a non-empty string.");
+    }
+    if (!config.description) {
+      throw new Error(
+        `[react-webmcp] Tool "${config.name}" description must be a non-empty string.`,
+      );
+    }
+
+    // Pre-check inputSchema serialization (spec stringifies it internally;
+    // circular refs or non-serializable values will throw TypeError).
+    if (process.env.NODE_ENV !== "production" && config.inputSchema) {
+      try {
+        JSON.stringify(config.inputSchema);
+      } catch (e) {
+        throw new Error(
+          `[react-webmcp] Tool "${config.name}" inputSchema is not JSON-serializable: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+
     // Unregister the previous tool if the name changed
     if (registeredNameRef.current && registeredNameRef.current !== config.name) {
       try {
@@ -94,10 +117,19 @@ export function useWebMCPTool(config: UseWebMCPToolConfig): void {
       registeredNameRef.current = config.name;
     } catch (err) {
       if (process.env.NODE_ENV !== "production") {
-        console.error(
-          `[react-webmcp] Failed to register tool "${config.name}":`,
-          err,
-        );
+        const isDuplicate =
+          err instanceof DOMException && err.name === "InvalidStateError";
+        if (isDuplicate) {
+          console.warn(
+            `[react-webmcp] Tool "${config.name}" is already registered (InvalidStateError). ` +
+              `This may indicate a duplicate registration or a missed unregisterTool().`,
+          );
+        } else {
+          console.error(
+            `[react-webmcp] Failed to register tool "${config.name}":`,
+            err,
+          );
+        }
       }
     }
 

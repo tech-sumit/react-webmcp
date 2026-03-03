@@ -67,6 +67,19 @@ export function useWebMCPContext(config: {
       return;
     }
 
+    // Per spec: registerTool() throws InvalidStateError if name or description
+    // is the empty string. Validate early with a developer-friendly message.
+    for (const tool of toolsRef.current) {
+      if (!tool.name) {
+        throw new Error("[react-webmcp] Tool name must be a non-empty string.");
+      }
+      if (!tool.description) {
+        throw new Error(
+          `[react-webmcp] Tool "${tool.name}" description must be a non-empty string.`,
+        );
+      }
+    }
+
     // Wrap execute functions so they always call through the latest ref,
     // allowing callers to pass inline arrow functions without triggering
     // the effect.

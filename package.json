@@ -1,6 +1,6 @@
 {
   "name": "react-webmcp",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "React hooks and components for the WebMCP standard — expose structured tools for AI agents on your website",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

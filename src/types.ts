@@ -47,7 +47,13 @@ export interface JSONSchema {
 // ---------------------------------------------------------------------------
 
 export interface ToolAnnotations {
-  /** Indicates the tool only reads data and does not modify state (browser-native). */
+  /**
+   * Indicates the tool only reads data and does not modify state.
+   *
+   * Per the spec's formalized `registerTool()` algorithm, this value is
+   * extracted from annotations and stored as a top-level field on the
+   * internal tool definition struct (`read-only hint`, initially false).
+   */
   readOnlyHint?: boolean;
   /**
    * Indicates the tool performs a destructive/irreversible operation.
@@ -182,6 +188,7 @@ export interface ModelContextTesting {
     name: string;
     description: string;
     inputSchema: string;
+    readOnlyHint?: boolean;
   }>;
   /**
    * Execute a tool by name.
