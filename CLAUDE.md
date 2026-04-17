@@ -2,28 +2,28 @@
 
 ## Project Overview
 
-AI-Native Personal n8n Automation System. The 9-service Docker Compose stack runs directly on the **macOS host**. A Parallels Desktop Ubuntu 24.04 VM runs only the ZeroClaw AI agent, which talks back to n8n over the Parallels host bridge IP (`10.211.55.2` by default).
+AI-Native Personal n8n Automation System. The 9-service Docker Compose stack runs directly on the **macOS host**. A Parallels Desktop Ubuntu 24.04 VM runs only the NemoClaw AI agent, which talks back to n8n over the Parallels host bridge IP (`10.211.55.2` by default).
 
 ## Architecture
 
 ```
 macOS Host
 ├── Docker Compose (9 services — all run locally)
-│     ├── n8n             – workflow engine       → localhost:5678
-│     ├── PostgreSQL 16   – database
-│     ├── Redis           – queue mode
-│     ├── HashiCorp Vault – secrets               → localhost:8200
-│     ├── Cloudflare Tunnel – webhook ingress
-│     ├── Grafana Alloy   – metrics/logs relay
-│     ├── cAdvisor        – container metrics
-│     ├── node-exporter   – host system metrics
-│     └── vault-init      – one-shot Vault bootstrap
+│ ├── n8n – workflow engine → localhost:5678
+│ ├── PostgreSQL 16 – database
+│ ├── Redis – queue mode
+│ ├── HashiCorp Vault – secrets → localhost:8200
+│ ├── Cloudflare Tunnel – webhook ingress
+│ ├── Grafana Alloy – metrics/logs relay
+│ ├── cAdvisor – container metrics
+│ ├── node-exporter – host system metrics
+│ └── vault-init – one-shot Vault bootstrap
 └── Parallels VM (Ubuntu 24.04) — NAT port forwarding
-      └── ZeroClaw        – AI agent              → localhost:42617 (via VM NAT)
-            └── Talks to host services via HOST_IP (10.211.55.2)
+ └── NemoClaw – AI agent → localhost:18789 (via VM NAT)
+ └── Talks to host services via HOST_IP (10.211.55.2)
 ```
 
-Port forwarding from VM: SSH → `localhost:2222`, ZeroClaw → `localhost:42617`.
+Port forwarding from VM: SSH → `localhost:2222`, NemoClaw → `localhost:18789`.
 Observability: Grafana Alloy ships metrics (Mimir) and logs (Loki) to Grafana Cloud.
 Secrets: all runtime secrets flow through HashiCorp Vault; `.env` holds only bootstrap credentials.
 
@@ -41,7 +41,7 @@ Secrets: all runtime secrets flow through HashiCorp Vault; `.env` holds only boo
 | `docs/` | Architecture, setup guide, operations, observability docs, prompt templates |
 | `shared/` | Host↔VM synced folder: workflows, credentials, exchange data |
 | `n8n-templates/` | 8 260+ downloaded workflow templates + SQLite analysis DB |
-| `zeroclaw/workspace/` | ZeroClaw skills and workspace files synced to VM on setup |
+| `nemoclaw/workspace/` | NemoClaw skills and workspace files synced to VM on setup |
 
 ## First-Time Setup
 
@@ -52,18 +52,18 @@ make generate-secrets        # auto-fills: N8N_ENCRYPTION_KEY, POSTGRES_PASSWORD
                              #   PRLDEVOPS_ROOT_PASSWORD
 # then manually fill in .env: N8N_WEBHOOK_URL and any optional vars
 make check-env               # validate required vars are set
-make up                      # full bootstrap (Terraform → Docker → VM → ZeroClaw)
+make up                      # full bootstrap (Terraform → Docker → VM → NemoClaw)
 ```
 
 Required vars (`CORE_VARS`): `POSTGRES_PASSWORD`, `N8N_ENCRYPTION_KEY`, `N8N_WEBHOOK_URL`, `N8N_API_KEY`, `VAULT_ROOT_TOKEN`, `PRLDEVOPS_ROOT_PASSWORD`
 
-Optional vars (features disabled if missing): `CLOUDFLARE_DOMAIN`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `GRAFANA_CLOUD_*`, `ZEROCLAW_API_KEY`
+Optional vars (features disabled if missing): `CLOUDFLARE_DOMAIN`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `GRAFANA_CLOUD_*`, `NEMOCLAW_API_KEY`
 
 ## Common Commands
 
 ### System Lifecycle
 ```bash
-make up              # Full bootstrap: Terraform + Docker + VM + ZeroClaw
+make up              # Full bootstrap: Terraform + Docker + VM + NemoClaw
 make start           # Start existing Docker stack + VM (no Terraform)
 make stop            # Stop Docker stack + suspend VM
 make down            # Stop Docker stack only (VM stays running)
@@ -98,7 +98,7 @@ make vault-ui                          # open Vault UI in browser
 make vault-list                        # list all secrets under secret/n8n/
 make vault-get KEY=my-secret
 make vault-set KEY=my-secret VALUE=abc
-make vault-seed                        # write ZeroClaw + n8n API keys (auto-called by docker-up)
+make vault-seed                        # write NemoClaw + n8n API keys (auto-called by docker-up)
 ```
 
 ### Infrastructure
@@ -114,17 +114,17 @@ make tf-destroy      # tear down Terraform-managed resources
 make vm-ssh          # SSH into VM
 make vm-status       # show VM state and IP
 make vm-create       # create VM from Parallels template (idempotent)
-make vm-ports        # configure NAT port forwarding (SSH + ZeroClaw)
+make vm-ports        # configure NAT port forwarding (SSH + NemoClaw)
 make vm-destroy      # stop, remove port rules, delete VM
 make clean-devops    # remove prldevops service/binary (recovery when terraform destroy fails)
 make ensure-prldevops # install prldevops binary to ~/bin if missing
 make sudo-cache      # cache sudo credentials (needed before Parallels DevOps operations)
 ```
 
-### AI Agent (ZeroClaw)
+### AI Agent (NemoClaw)
 ```bash
 make agent MSG="What workflows are running?"
-make agent-status    # check ZeroClaw status in VM
+make agent-status    # check NemoClaw status in VM
 ```
 
 ### Observability
@@ -150,7 +150,7 @@ Workflow JSON files live in `shared/workflows/`. Always run `make workflows-expo
 
 ## Secrets Model
 
-Vault is the single source of truth at runtime. `.env` holds only bootstrap values (root tokens, internal service passwords). The `vault-init` container seeds Vault on first run; `make vault-seed` writes ZeroClaw and n8n API keys and is called automatically by `make docker-up`. Do not hardcode secrets anywhere outside `.env`.
+Vault is the single source of truth at runtime. `.env` holds only bootstrap values (root tokens, internal service passwords). The `vault-init` container seeds Vault on first run; `make vault-seed` writes NemoClaw and n8n API keys and is called automatically by `make docker-up`. Do not hardcode secrets anywhere outside `.env`.
 
 ## Terraform Modules
 
@@ -162,9 +162,9 @@ Four modules under `terraform/`:
 
 Toggle modules via feature-flag vars in `.env`. `make tf-apply` automatically writes `CLOUDFLARE_TUNNEL_TOKEN` back to `.env` from Terraform output if Cloudflare is enabled.
 
-## ZeroClaw
+## NemoClaw
 
-ZeroClaw is the AI agent running in the VM. It has 6 skills: `n8n-manage`, `n8n-debug`, `observe`, `vault-manage`, `terraform-infra`, `system-ops`. It talks to host services over `HOST_IP` (default `10.211.55.2`). Invoke from the host via `make agent MSG="..."`. Skills and workspace files are in `zeroclaw/workspace/` and synced to the VM during `make vm-setup-zeroclaw`.
+NemoClaw is the AI agent running in the VM. It talks to host services over `HOST_IP` (default `10.211.55.2`). Invoke from the host via `make agent MSG="..."`. Skills and workspace files are in `nemoclaw/workspace/` and synced to the VM during `make vm-setup-nemoclaw`.
 
 ## No Test Suite
 
@@ -174,6 +174,7 @@ This is an operations platform, not a software library. No automated tests or CI
 
 User projects live under `projects/` and are independently deployable:
 - `projects/instagram-reels/`
+- `projects/nord-meshnet-remote-desktop/`
 - `projects/webmcp/`
 - `projects/website-factory/`
 

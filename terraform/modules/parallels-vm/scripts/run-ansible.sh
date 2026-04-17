@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-# run-ansible.sh -- Copy and run the ZeroClaw Ansible playbook on the VM
+# run-ansible.sh -- Copy and run the NemoClaw Ansible playbook on the VM
 #
 # Usage: run-ansible.sh <vm_user> <vm_ssh_port> <ansible_dir>
 #
@@ -14,7 +14,7 @@ ANSIBLE_DIR="${3}"
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${VM_SSH_PORT}"
 
-echo "=== ZeroClaw Ansible Provisioning ==="
+echo "=== NemoClaw Ansible Provisioning ==="
 echo "  VM user:    ${VM_USER}"
 echo "  SSH port:   ${VM_SSH_PORT}"
 echo "  Playbook:   ${ANSIBLE_DIR}"
@@ -23,23 +23,21 @@ echo "  Playbook:   ${ANSIBLE_DIR}"
 # 1. Sync playbook to the VM
 # ---------------------------
 echo ""
-echo "[1/2] Syncing ZeroClaw Ansible playbook to VM..."
+echo "[1/2] Syncing NemoClaw Ansible playbook to VM..."
 rsync -avz --delete --exclude='.git' \
   -e "ssh ${SSH_OPTS}" \
   "${ANSIBLE_DIR}/" \
-  "${VM_USER}@localhost:/tmp/zeroclaw-ansible/"
+  "${VM_USER}@localhost:/tmp/nemoclaw-ansible/"
 
 # ---------------------------
 # 2. Install Ansible and run playbook on the VM
 # ---------------------------
 echo ""
-echo "[2/2] Running ZeroClaw Ansible playbook on VM..."
+echo "[2/2] Running NemoClaw Ansible playbook on VM..."
 ssh ${SSH_OPTS} "${VM_USER}@localhost" 'bash -s' <<'REMOTE'
 set -euo pipefail
 
 echo "--- VM: fixing broken dpkg state from Parallels clone (grub-efi)..."
-# Parallels VM clones change the disk UUID/ID, which breaks grub-efi post-install scripts.
-# Divert grub-multi-install to a no-op so apt dist-upgrade can proceed uninterrupted.
 if [ -x /usr/lib/grub/grub-multi-install ] && ! dpkg-divert --list /usr/lib/grub/grub-multi-install | grep -q local; then
   sudo dpkg-divert --add --rename --divert /usr/lib/grub/grub-multi-install.real /usr/lib/grub/grub-multi-install
 fi
@@ -48,7 +46,6 @@ echo "grub-multi-install: skipped (Parallels VM clone)"
 exit 0' | sudo tee /usr/lib/grub/grub-multi-install > /dev/null
 sudo chmod +x /usr/lib/grub/grub-multi-install
 
-# Fix any broken EFI/grub packages in rF (reinst-required) state
 if dpkg -l grub-efi-arm64-signed 2>/dev/null | grep -q '^rF'; then
   echo "--- VM: reinstalling grub-efi-arm64-signed..."
   sudo grub-install --target=arm64-efi --efi-directory=/boot/efi --no-nvram --removable /dev/sda 2>/dev/null || true
@@ -57,7 +54,6 @@ if dpkg -l grub-efi-arm64-signed 2>/dev/null | grep -q '^rF'; then
   sudo DEBIAN_FRONTEND=noninteractive apt-get install --reinstall -y shim-signed 2>/dev/null || true
 fi
 
-# Kill any stuck debconf/dpkg processes
 sudo pkill -9 -f 'dpkg\|debconf' 2>/dev/null || true
 sleep 1
 
@@ -71,17 +67,17 @@ else
   echo "--- VM: Ansible already present ($(ansible --version | head -1))."
 fi
 
-cd /tmp/zeroclaw-ansible
+cd /tmp/nemoclaw-ansible
 
 echo "--- VM: installing Ansible collections..."
 sudo ansible-galaxy collection install -r requirements.yml --force-with-deps 2>/dev/null || \
   sudo ansible-galaxy collection install -r requirements.yml
 
-echo "--- VM: running ZeroClaw playbook..."
+echo "--- VM: running NemoClaw playbook..."
 sudo ansible-playbook playbook.yml -e ansible_become=false
 
-echo "--- VM: ZeroClaw Ansible provisioning complete."
+echo "--- VM: NemoClaw Ansible provisioning complete."
 REMOTE
 
 echo ""
-echo "=== ZeroClaw Ansible Provisioning Complete ==="
+echo "=== NemoClaw Ansible Provisioning Complete ==="

@@ -1,0 +1,19 @@
+---
+- name: Restart docker
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+  when: not ci_test
+
+- name: Restart fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: restarted
+  when: not ci_test
+
+- name: Reload and restart nemoclaw
+  ansible.builtin.systemd:
+    name: nemoclaw
+    daemon_reload: true
+    state: restarted
+  when: not ci_test

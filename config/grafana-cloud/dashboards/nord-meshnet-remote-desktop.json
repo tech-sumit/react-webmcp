@@ -1,0 +1,178 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "nord-meshnet-remote-desktop",
+    "title": "Nord Meshnet Remote Desktop",
+    "description": "Control-plane availability, session throughput, and remote desktop audit signals",
+    "tags": [
+      "meshnet",
+      "remote-desktop",
+      "auto-provisioned"
+    ],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "15s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Online Devices",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "nord_meshnet_online_devices",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Active Sessions",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "nord_meshnet_active_sessions",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Session Requests By State",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "sum by (state) (rate(nord_meshnet_session_requests_total[5m]))",
+            "legendFormat": "{{state}}",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Device Registrations",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 4
+        },
+        "targets": [
+          {
+            "expr": "rate(nord_meshnet_device_registrations_total[5m])",
+            "legendFormat": "registrations/sec",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
+        }
+      },
+      {
+        "id": 5,
+        "title": "Pairing Codes Created",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(nord_meshnet_pairing_codes_total[5m])",
+            "legendFormat": "pairings/sec",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            }
+          }
+        ],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "grafanacloud-prom"
+        }
+      },
+      {
+        "id": 6,
+        "title": "Warnings And Errors",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "sum by (level) (count_over_time({service=\"nord-meshnet-control-plane\"} | json | level=~\"warn|error\" [$__interval]))",
+            "legendFormat": "{{level}}",
+            "refId": "A",
+            "datasource": {
+              "type": "loki",
+              "uid": "grafanacloud-logs"
+            }
+          }
+        ],
+        "datasource": {
+          "type": "loki",
+          "uid": "grafanacloud-logs"
+        }
+      }
+    ]
+  },
+  "overwrite": true
+}

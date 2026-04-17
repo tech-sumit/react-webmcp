@@ -1,0 +1,155 @@
+---
+- name: Create nemoclaw system user
+  ansible.builtin.user:
+    name: "{{ nemoclaw_user }}"
+    comment: "NemoClaw Service User"
+    system: true
+    shell: /bin/bash
+    create_home: true
+    home: "{{ nemoclaw_home }}"
+    state: present
+
+- name: Ensure nemoclaw home directory has correct ownership
+  ansible.builtin.file:
+    path: "{{ nemoclaw_home }}"
+    owner: "{{ nemoclaw_user }}"
+    group: "{{ nemoclaw_user }}"
+    state: directory
+    mode: '0755'
+
+- name: Configure .bashrc for nemoclaw user
+  ansible.builtin.blockinfile:
+    path: "{{ nemoclaw_home }}/.bashrc"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - NemoClaw config"
+    block: |
+      # Enable 256 colors
+      export TERM=xterm-256color
+      export COLORTERM=truecolor
+
+      # Rust/Cargo in PATH
+      export PATH="{{ nemoclaw_home }}/.cargo/bin:$PATH"
+
+      # Color support for common tools
+      export CLICOLOR=1
+      export LS_COLORS='di=34:ln=35:so=32:pi=33:ex=31:bd=34;46:cd=34;43:su=30;41:sg=30;46:tw=30;42:ow=30;43'
+
+      # Aliases
+      alias ls='ls --color=auto'
+      alias grep='grep --color=auto'
+      alias ll='ls -lah'
+    create: true
+    owner: "{{ nemoclaw_user }}"
+    group: "{{ nemoclaw_user }}"
+    mode: '0644'
+
+- name: Add nemoclaw user to sudoers with scoped NOPASSWD
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ nemoclaw_user }}"
+    mode: '0440'
+    owner: root
+    group: root
+    content: |
+      # NemoClaw sudo permissions (scoped for security)
+      # Service control - nemoclaw services only
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl start nemoclaw-gateway
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop nemoclaw-gateway
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nemoclaw-gateway
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl status nemoclaw-gateway
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable nemoclaw-gateway
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl disable nemoclaw-gateway
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl start nemoclaw-browser
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop nemoclaw-browser
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nemoclaw-browser
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl status nemoclaw-browser
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
+
+      # Tailscale diagnostics
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale status
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale up *
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale down
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale ip *
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale version
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale ping *
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/tailscale whois *
+
+      # Journal access - nemoclaw logs only
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u nemoclaw-gateway *
+      {{ nemoclaw_user }} ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u nemoclaw-browser *
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Create .bash_profile to source .bashrc for login shells
+  ansible.builtin.copy:
+    dest: "{{ nemoclaw_home }}/.bash_profile"
+    owner: "{{ nemoclaw_user }}"
+    group: "{{ nemoclaw_user }}"
+    mode: '0644'
+    content: |
+      if [ -f ~/.bashrc ]; then
+          . ~/.bashrc
+      fi
+
+- name: Get nemoclaw user ID
+  ansible.builtin.command: "id -u {{ nemoclaw_user }}"
+  register: nemoclaw_uid
+  changed_when: false
+  when: ansible_os_family == 'Debian' and not ci_test
+
+- name: Enable lingering for nemoclaw user
+  ansible.builtin.command: "loginctl enable-linger {{ nemoclaw_user }}"
+  changed_when: false
+  when: ansible_os_family == 'Debian' and not ci_test
+
+- name: Create runtime directory for nemoclaw user
+  ansible.builtin.file:
+    path: "/run/user/{{ nemoclaw_uid.stdout }}"
+    state: directory
+    owner: "{{ nemoclaw_user }}"
+    group: "{{ nemoclaw_user }}"
+    mode: '0700'
+  when: ansible_os_family == 'Debian' and not ci_test
+
+- name: Store nemoclaw UID as fact
+  ansible.builtin.set_fact:
+    nemoclaw_uid_value: "{{ nemoclaw_uid.stdout }}"
+  when: ansible_os_family == 'Debian' and not ci_test
+
+- name: Create .ssh directory for nemoclaw user
+  ansible.builtin.file:
+    path: "{{ nemoclaw_home }}/.ssh"
+    state: directory
+    owner: "{{ nemoclaw_user }}"
+    group: "{{ nemoclaw_user }}"
+    mode: '0700'
+
+- name: Add SSH authorized keys for nemoclaw user
+  ansible.posix.authorized_key:
+    user: "{{ nemoclaw_user }}"
+    state: present
+    key: "{{ item }}"
+  loop: "{{ nemoclaw_ssh_keys }}"
+  when: nemoclaw_ssh_keys | length > 0
+
+- name: Set XDG_RUNTIME_DIR in .bashrc
+  ansible.builtin.lineinfile:
+    path: "{{ nemoclaw_home }}/.bashrc"
+    line: 'export XDG_RUNTIME_DIR=/run/user/$(id -u)'
+    state: present
+    create: true
+    owner: "{{ nemoclaw_user }}"
+    group: "{{ nemoclaw_user }}"
+    mode: '0644'
+  when: ansible_os_family == 'Debian' and not ci_test
+
+- name: Set DBUS_SESSION_BUS_ADDRESS in .bashrc
+  ansible.builtin.blockinfile:
+    path: "{{ nemoclaw_home }}/.bashrc"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - DBus config"
+    block: |
+      if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+        export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+      fi
+    create: true
+    owner: "{{ nemoclaw_user }}"
+    group: "{{ nemoclaw_user }}"
+    mode: '0644'
+  when: ansible_os_family == 'Debian' and not ci_test

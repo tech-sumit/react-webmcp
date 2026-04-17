@@ -186,7 +186,7 @@ make agent MSG="Why is the daily-report workflow failing?"
 ```
 
 ### Agent Capabilities
-The ZeroClaw agent has 6 skills:
+The NemoClaw agent has 6 skills:
 1. **n8n-manage**: Workflow CRUD
 2. **n8n-debug**: Execution debugging
 3. **observe**: Log/metric queries

@@ -1,0 +1,132 @@
+---
+# NemoClaw installation -- Node.js CLI from local source (external/NemoClaw)
+
+- name: Ensure nemoclaw home directory exists with correct ownership
+  ansible.builtin.file:
+    path: "{{ nemoclaw_home }}"
+    state: directory
+    owner: "{{ nemoclaw_user }}"
+    group: "{{ nemoclaw_user }}"
+    mode: '0755'
+
+- name: Create NemoClaw directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ nemoclaw_user }}"
+    group: "{{ nemoclaw_user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ nemoclaw_config_dir }}", mode: '0755' }
+    - { path: "{{ nemoclaw_config_dir }}/logs", mode: '0755' }
+    - { path: "{{ nemoclaw_code_dir }}", mode: '0755' }
+
+- name: Check if nvm is installed
+  ansible.builtin.stat:
+    path: "{{ nemoclaw_home }}/.nvm/nvm.sh"
+  register: nvm_installed
+
+- name: Install nvm
+  ansible.builtin.shell:
+    cmd: |
+      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+    executable: /bin/bash
+  become: true
+  become_user: "{{ nemoclaw_user }}"
+  environment:
+    HOME: "{{ nemoclaw_home }}"
+  when: not nvm_installed.stat.exists
+
+- name: Install Node.js via nvm
+  ansible.builtin.shell:
+    cmd: |
+      export NVM_DIR="{{ nemoclaw_home }}/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+      nvm install {{ node_major_version }}
+      nvm alias default {{ node_major_version }}
+    executable: /bin/bash
+  become: true
+  become_user: "{{ nemoclaw_user }}"
+  environment:
+    HOME: "{{ nemoclaw_home }}"
+  register: node_install
+
+- name: Verify Node.js installation
+  ansible.builtin.shell:
+    cmd: |
+      export NVM_DIR="{{ nemoclaw_home }}/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+      echo "Node.js: $(node --version), npm: $(npm --version)"
+    executable: /bin/bash
+  become: true
+  become_user: "{{ nemoclaw_user }}"
+  environment:
+    HOME: "{{ nemoclaw_home }}"
+  register: node_version
+  changed_when: false
+
+- name: Display Node.js version
+  ansible.builtin.debug:
+    msg: "{{ node_version.stdout }}"
+
+- name: Install OpenShell binary
+  ansible.builtin.shell:
+    cmd: |
+      if command -v openshell >/dev/null 2>&1; then
+        echo "OpenShell already installed: $(openshell --version 2>&1 || echo unknown)"
+        exit 0
+      fi
+      ARCH=$(uname -m)
+      case "$ARCH" in
+        x86_64|amd64) ASSET="openshell-x86_64-unknown-linux-musl.tar.gz" ;;
+        aarch64|arm64) ASSET="openshell-aarch64-unknown-linux-musl.tar.gz" ;;
+        *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+      esac
+      tmpdir=$(mktemp -d)
+      trap 'rm -rf "$tmpdir"' EXIT
+      curl -fsSL "https://github.com/NVIDIA/OpenShell/releases/latest/download/$ASSET" -o "$tmpdir/$ASSET"
+      tar xzf "$tmpdir/$ASSET" -C "$tmpdir"
+      install -m 755 "$tmpdir/openshell" /usr/local/bin/openshell
+      echo "OpenShell installed: $(openshell --version 2>&1 || echo installed)"
+    executable: /bin/bash
+  register: openshell_install
+
+- name: Display OpenShell install result
+  ansible.builtin.debug:
+    msg: "{{ openshell_install.stdout }}"
+
+- name: Check if NemoClaw source exists
+  ansible.builtin.stat:
+    path: "{{ nemoclaw_source_dir }}/package.json"
+  register: nemoclaw_source_exists
+
+- name: Install NemoClaw from source (npm install + npm link)
+  ansible.builtin.shell:
+    cmd: |
+      export NVM_DIR="{{ nemoclaw_home }}/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+      cd "{{ nemoclaw_source_dir }}"
+      npm install
+      npm link
+      echo "NemoClaw installed: $(nemoclaw --help 2>&1 | head -1 || echo 'linked')"
+    executable: /bin/bash
+  become: true
+  become_user: "{{ nemoclaw_user }}"
+  environment:
+    HOME: "{{ nemoclaw_home }}"
+  register: npm_install_result
+  changed_when: true
+  when: nemoclaw_source_exists.stat.exists
+
+- name: Display NemoClaw install result
+  ansible.builtin.debug:
+    msg: "{{ npm_install_result.stdout | default('NemoClaw source not found -- sync source first') }}"
+
+- name: Display next steps
+  ansible.builtin.debug:
+    msg: |
+      NemoClaw is installed but NOT onboarded yet.
+      Next steps (run via nemoclaw-setup.sh):
+      1. Set NVIDIA_API_KEY environment variable
+      2. Run: nemoclaw onboard --non-interactive
+      3. Run: nemoclaw start

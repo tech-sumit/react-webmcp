@@ -1,7 +1,7 @@
 ###############################################################################
 # Grafana Cloud Alert Rules
 # Provisioned via API from this versioned YAML file.
-# Total: 17 rules across n8n, infrastructure, ZeroClaw, and Parallels.
+# Total: 17 rules across n8n, infrastructure, NemoClaw, and Parallels.
 ###############################################################################
 
 apiVersion: 1
@@ -264,15 +264,15 @@ groups:
           description: "PostgreSQL has been unreachable for 1 minute"
 
   # ===========================================================================
-  # ZeroClaw (AI Agent) Alerts
+  # NemoClaw (AI Agent) Alerts
   # ===========================================================================
   - orgId: 1
-    name: zeroclaw-alerts
-    folder: zeroclaw
+    name: nemoclaw-alerts
+    folder: nemoclaw
     interval: 1m
     rules:
-      - uid: zeroclaw-gateway-down
-        title: ZeroClawGatewayDown
+      - uid: nemoclaw-gateway-down
+        title: NemoClawGatewayDown
         condition: C
         data:
           - refId: A
@@ -281,7 +281,7 @@ groups:
               to: 0
             datasourceUid: grafanacloud-prom
             model:
-              expr: up{job="zeroclaw"} or vector(0)
+              expr: up{job="nemoclaw"} or vector(0)
               refId: A
           - refId: C
             relativeTimeRange:
@@ -299,11 +299,11 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "ZeroClaw gateway is unreachable"
-          description: "ZeroClaw gateway has been unreachable for 2 minutes"
+          summary: "NemoClaw gateway is unreachable"
+          description: "NemoClaw gateway has been unreachable for 2 minutes"
 
-      - uid: zeroclaw-high-llm-cost
-        title: ZeroClawHighLLMCost
+      - uid: nemoclaw-high-llm-cost
+        title: NemoClawHighLLMCost
         condition: C
         data:
           - refId: A
@@ -313,7 +313,7 @@ groups:
             datasourceUid: grafanacloud-logs
             model:
               expr: |
-                sum(sum_over_time({service="zeroclaw_telemetry", event_type="llm.usage"} | json | unwrap costUsd [1h]))
+                sum(sum_over_time({service="nemoclaw_telemetry", event_type="llm.usage"} | json | unwrap costUsd [1h]))
               refId: A
           - refId: C
             relativeTimeRange:
@@ -331,11 +331,11 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "ZeroClaw LLM cost > $10 in rolling 1 hour"
+          summary: "NemoClaw LLM cost > $10 in rolling 1 hour"
           description: "LLM cost in last hour: ${{ $value }}"
 
-      - uid: zeroclaw-tool-failure-spike
-        title: ZeroClawToolFailureSpike
+      - uid: nemoclaw-tool-failure-spike
+        title: NemoClawToolFailureSpike
         condition: C
         data:
           - refId: A
@@ -345,8 +345,8 @@ groups:
             datasourceUid: grafanacloud-logs
             model:
               expr: |
-                sum(count_over_time({service="zeroclaw_telemetry", event_type="tool.end"} | json | success="false" [5m]))
-                / sum(count_over_time({service="zeroclaw_telemetry", event_type="tool.end"} [5m])) * 100
+                sum(count_over_time({service="nemoclaw_telemetry", event_type="tool.end"} | json | success="false" [5m]))
+                / sum(count_over_time({service="nemoclaw_telemetry", event_type="tool.end"} [5m])) * 100
               refId: A
           - refId: C
             relativeTimeRange:
@@ -364,11 +364,11 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "ZeroClaw tool failure rate > 30% for 5 minutes"
+          summary: "NemoClaw tool failure rate > 30% for 5 minutes"
           description: "Tool failure rate: {{ $value }}%"
 
-      - uid: zeroclaw-high-token-burn
-        title: ZeroClawHighTokenBurn
+      - uid: nemoclaw-high-token-burn
+        title: NemoClawHighTokenBurn
         condition: C
         data:
           - refId: A
@@ -378,7 +378,7 @@ groups:
             datasourceUid: grafanacloud-logs
             model:
               expr: |
-                sum(sum_over_time({service="zeroclaw_telemetry", event_type="llm.usage"} | json | unwrap totalTokens [1h]))
+                sum(sum_over_time({service="nemoclaw_telemetry", event_type="llm.usage"} | json | unwrap totalTokens [1h]))
               refId: A
           - refId: C
             relativeTimeRange:
@@ -396,7 +396,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "ZeroClaw token usage > 500k in 1 hour"
+          summary: "NemoClaw token usage > 500k in 1 hour"
           description: "Token usage in last hour: {{ $value }}"
 
   # ===========================================================================

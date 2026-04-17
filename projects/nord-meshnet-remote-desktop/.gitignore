@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+.env
+.expo/
+.expo-shared/
+*.log
+.DS_Store
+services/control-plane/runtime/
+services/control-plane/state/

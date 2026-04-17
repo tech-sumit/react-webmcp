@@ -95,6 +95,18 @@ prometheus.scrape "prldevops" {
   job_name        = "prldevops"
 }
 
+// Nord Meshnet Remote Desktop control-plane metrics (host service)
+prometheus.scrape "nord_meshnet_control_plane" {
+  targets = [{
+    __address__ = env("HOST_IP") + ":8789",
+    instance    = "nord-meshnet-control-plane",
+  }]
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  metrics_path    = "/metrics"
+  scrape_interval = env("ALLOY_SCRAPE_INTERVAL")
+  job_name        = "nord-meshnet-control-plane"
+}
+
 // =============================================================================
 // Docker Container Log Collection
 // =============================================================================
@@ -154,29 +166,29 @@ loki.process "docker_logs" {
 }
 
 // =============================================================================
-// ZeroClaw Log Collection (JSONL files)
+// NemoClaw Log Collection (JSONL files)
 // =============================================================================
 
-// ZeroClaw logs (synced from VM via scripts/sync-zeroclaw-logs.sh)
-local.file_match "zeroclaw_logs" {
+// NemoClaw logs (synced from VM via scripts/sync-nemoclaw-logs.sh)
+local.file_match "nemoclaw_logs" {
   path_targets = [
     {
-      __path__     = "/zeroclaw-logs/gateway.log",
-      service      = "zeroclaw",
+      __path__     = "/nemoclaw-logs/gateway.log",
+      service      = "nemoclaw",
     },
     {
-      __path__     = "/zeroclaw-logs/zeroclaw-*.log",
-      service      = "zeroclaw",
+      __path__     = "/nemoclaw-logs/nemoclaw-*.log",
+      service      = "nemoclaw",
     },
   ]
 }
 
-loki.source.file "zeroclaw_logs" {
-  targets    = local.file_match.zeroclaw_logs.targets
-  forward_to = [loki.process.zeroclaw_logs.receiver]
+loki.source.file "nemoclaw_logs" {
+  targets    = local.file_match.nemoclaw_logs.targets
+  forward_to = [loki.process.nemoclaw_logs.receiver]
 }
 
-loki.process "zeroclaw_logs" {
+loki.process "nemoclaw_logs" {
   stage.json {
     expressions = {
       level     = "level",
@@ -194,20 +206,20 @@ loki.process "zeroclaw_logs" {
   forward_to = [loki.write.grafana_cloud.receiver]
 }
 
-// ZeroClaw telemetry JSONL (synced from VM via scripts/sync-zeroclaw-logs.sh)
-local.file_match "zeroclaw_telemetry" {
+// NemoClaw telemetry JSONL (synced from VM via scripts/sync-nemoclaw-logs.sh)
+local.file_match "nemoclaw_telemetry" {
   path_targets = [{
-    __path__     = "/zeroclaw-logs/telemetry.jsonl",
-    service      = "zeroclaw_telemetry",
+    __path__     = "/nemoclaw-logs/telemetry.jsonl",
+    service      = "nemoclaw_telemetry",
   }]
 }
 
-loki.source.file "zeroclaw_telemetry" {
-  targets    = local.file_match.zeroclaw_telemetry.targets
-  forward_to = [loki.process.zeroclaw_telemetry.receiver]
+loki.source.file "nemoclaw_telemetry" {
+  targets    = local.file_match.nemoclaw_telemetry.targets
+  forward_to = [loki.process.nemoclaw_telemetry.receiver]
 }
 
-loki.process "zeroclaw_telemetry" {
+loki.process "nemoclaw_telemetry" {
   stage.json {
     expressions = {
       event_type = "type",
@@ -218,6 +230,36 @@ loki.process "zeroclaw_telemetry" {
   stage.labels {
     values = {
       event_type = "",
+    }
+  }
+
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+// Nord Meshnet Remote Desktop control-plane logs (host JSONL)
+local.file_match "nord_meshnet_logs" {
+  path_targets = [{
+    __path__ = "/nord-meshnet-logs/control-plane.log",
+    service  = "nord-meshnet-control-plane",
+  }]
+}
+
+loki.source.file "nord_meshnet_logs" {
+  targets    = local.file_match.nord_meshnet_logs.targets
+  forward_to = [loki.process.nord_meshnet_logs.receiver]
+}
+
+loki.process "nord_meshnet_logs" {
+  stage.json {
+    expressions = {
+      level   = "level",
+      message = "message",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "",
     }
   }
 

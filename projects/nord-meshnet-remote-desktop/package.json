@@ -1,0 +1,30 @@
+{
+  "name": "nord-meshnet-remote-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@11.6.2",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --workspace @nord-meshnet/protocol && npm run build --workspace @nord-meshnet/crypto && npm run build --workspace @nord-meshnet/native-bridges",
+    "build": "npm run build:shared && npm run build --workspace @nord-meshnet/control-plane && npm run build --workspace @nord-meshnet/desktop && npm run build --workspace @nord-meshnet/mobile",
+    "typecheck": "npm run build:shared && npm run typecheck --workspace @nord-meshnet/protocol && npm run typecheck --workspace @nord-meshnet/crypto && npm run typecheck --workspace @nord-meshnet/native-bridges && npm run typecheck --workspace @nord-meshnet/control-plane && npm run typecheck --workspace @nord-meshnet/desktop && npm run typecheck --workspace @nord-meshnet/mobile",
+    "test": "npm run test --workspaces --if-present",
+    "dev:control-plane": "npm run dev --workspace @nord-meshnet/control-plane",
+    "dev:desktop": "npm run dev --workspace @nord-meshnet/desktop",
+    "dev:mobile": "npm run start --workspace @nord-meshnet/mobile",
+    "doctor": "npm run doctor --workspace @nord-meshnet/control-plane && npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  }
+}

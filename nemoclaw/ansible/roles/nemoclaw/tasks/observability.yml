@@ -1,0 +1,125 @@
+---
+# Observability: node-exporter for VM system metrics + nemoclaw systemd service
+
+# ---------------------------------------------------------------------------
+# prometheus-node-exporter: VM system metrics (CPU, memory, disk, network)
+# ---------------------------------------------------------------------------
+- name: Install prometheus-node-exporter
+  ansible.builtin.apt:
+    name: prometheus-node-exporter
+    state: present
+    update_cache: true
+
+- name: Enable and start prometheus-node-exporter
+  ansible.builtin.systemd:
+    name: prometheus-node-exporter
+    state: started
+    enabled: true
+
+- name: Allow node-exporter port from Parallels host subnet only
+  community.general.ufw:
+    rule: allow
+    port: '9100'
+    proto: tcp
+    src: '10.211.55.0/24'
+    comment: 'prometheus-node-exporter (Parallels host only)'
+
+# ---------------------------------------------------------------------------
+# NemoClaw services systemd unit (manages sandbox + Telegram bridge)
+# ---------------------------------------------------------------------------
+- name: Create nemoclaw systemd service file
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/nemoclaw.service
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=NemoClaw Agent Services
+      After=network.target docker.service
+      Wants=network.target
+      Requires=docker.service
+      StartLimitIntervalSec=0
+
+      [Service]
+      Type=forking
+      User={{ nemoclaw_user }}
+      Group={{ nemoclaw_user }}
+      WorkingDirectory={{ nemoclaw_source_dir }}
+      Environment=HOME={{ nemoclaw_home }}
+      Environment=NVM_DIR={{ nemoclaw_home }}/.nvm
+      ExecStartPre=/bin/bash -c '. {{ nemoclaw_home }}/.nvm/nvm.sh && [ -f {{ nemoclaw_config_dir }}/.env ] && set -a && . {{ nemoclaw_config_dir }}/.env && set +a || true'
+      ExecStart=/bin/bash -c '. {{ nemoclaw_home }}/.nvm/nvm.sh && set -a && [ -f {{ nemoclaw_config_dir }}/.env ] && . {{ nemoclaw_config_dir }}/.env && set +a; nemoclaw start'
+      ExecStop=/bin/bash -c '. {{ nemoclaw_home }}/.nvm/nvm.sh && nemoclaw stop'
+      Restart=on-failure
+      RestartSec=10
+      StandardOutput=append:{{ nemoclaw_config_dir }}/logs/services.log
+      StandardError=append:{{ nemoclaw_config_dir }}/logs/services.log
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Reload and restart nemoclaw
+
+- name: Enable nemoclaw service (start handled by nemoclaw-setup.sh)
+  ansible.builtin.systemd:
+    name: nemoclaw
+    daemon_reload: true
+    enabled: true
+    state: stopped
+  ignore_errors: true
+
+# ---------------------------------------------------------------------------
+# NemoClaw browser service (snap Chromium, headless CDP on port 18792)
+# ---------------------------------------------------------------------------
+- name: Install chromium snap
+  community.general.snap:
+    name: chromium
+    state: present
+
+- name: Create browser user-data directory
+  ansible.builtin.file:
+    path: "{{ nemoclaw_home }}/browser-data"
+    state: directory
+    owner: "{{ nemoclaw_user }}"
+    group: "{{ nemoclaw_user }}"
+    mode: '0755'
+
+- name: Create nemoclaw-browser systemd service file
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/nemoclaw-browser.service
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=NemoClaw Browser (Chromium CDP)
+      After=network.target
+      Before=nemoclaw.service
+
+      [Service]
+      Type=simple
+      User={{ nemoclaw_user }}
+      Group={{ nemoclaw_user }}
+      ExecStart=/snap/bin/chromium \
+        --headless \
+        --no-sandbox \
+        --disable-gpu \
+        --disable-dev-shm-usage \
+        --remote-debugging-port=18792 \
+        --remote-debugging-address=0.0.0.0 \
+        --user-data-dir={{ nemoclaw_home }}/browser-data \
+        about:blank
+      Restart=on-failure
+      RestartSec=5
+      StandardOutput=append:{{ nemoclaw_config_dir }}/logs/browser.log
+      StandardError=append:{{ nemoclaw_config_dir }}/logs/browser.log
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Enable and start nemoclaw-browser service
+  ansible.builtin.systemd:
+    name: nemoclaw-browser
+    daemon_reload: true
+    enabled: true
+    state: started

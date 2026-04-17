@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Nord Meshnet Remote Desktop",
+    "slug": "nord-meshnet-remote-desktop",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.sumitagrawal.nordmeshnetremotedesktop"
+    },
+    "android": {
+      "package": "org.sumitagrawal.nordmeshnetremotedesktop"
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}

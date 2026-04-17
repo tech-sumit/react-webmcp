@@ -6,6 +6,31 @@
   "address": "",
   "google_maps_url": "",
   "primary_color": "#2563EB",
+  "design": {
+    "heading_font": "Inter",
+    "heading_weights": "600;700",
+    "body_font": "Inter",
+    "body_weights": "400;500;600",
+    "google_fonts_href": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+    "accent_color": "#F59E0B",
+    "surface_tone": "light",
+    "radius_scale": "md",
+    "motion_level": "subtle",
+    "layout_signature": "card_grid",
+    "section_order": [
+      "hero",
+      "features",
+      "about",
+      "services",
+      "testimonials",
+      "faq",
+      "contact"
+    ],
+    "creative_direction": "Default template tokens — overwritten per site by the pipeline.",
+    "anti_patterns": ["Generic purple gradient heroes without real photography"],
+    "nav_style": "solid",
+    "hero_treatment": "full_bleed"
+  },
   "about": {
     "title": "About Us",
     "body": "Tell your customers about your business. What makes you special? What do you offer?"

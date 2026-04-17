@@ -7,7 +7,7 @@ The AI-Native n8n Automation System has five layers:
 1. **Infrastructure** -- Parallels Desktop VM provisioned via Terraform
 2. **Automation Engine** -- n8n with PostgreSQL, Redis, Vault, Cloudflare Tunnel
 3. **Observability** -- Grafana Alloy relaying to Grafana Cloud
-4. **AI Agent** -- ZeroClaw with custom skills
+4. **AI Agent** -- NemoClaw with custom skills
 5. **CLI/Makefile** -- Developer interface
 
 ## Component Architecture
@@ -45,7 +45,7 @@ The VM runs the complete Docker Compose stack:
 | 2222 | 22 | SSH |
 | 5678 | 5678 | n8n |
 | 8200 | 8200 | Vault |
-| 42617 | 42617 | ZeroClaw Gateway |
+| 18789 | 18789 | NemoClaw Dashboard |
 
 ### Data Flow
 
@@ -83,4 +83,4 @@ All configuration flows from a single `.env` file via `scripts/env-to-tfvars.sh`
 - Explicit port forwarding (4 ports only)
 - Cloudflare WAF for webhook rate limiting
 - Grafana Cloud API key scoped to specific stack
-- ZeroClaw telemetry redaction strips sensitive data
+- NemoClaw telemetry redaction strips sensitive data

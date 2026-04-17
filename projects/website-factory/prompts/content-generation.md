@@ -18,6 +18,7 @@ RULES:
 - For testimonials, lightly polish the original reviews for grammar and clarity,
   but preserve the authentic voice and sentiment.
 - Return ONLY valid JSON matching the exact schema below. No markdown, no explanation.
+- Do **not** include a top-level `design` object — typography, motion, and layout tokens are produced by the **design system** step that runs after content generation.
 ```
 
 ## User Prompt Template

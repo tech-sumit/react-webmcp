@@ -1,6 +1,6 @@
 # AI-Native Personal n8n Automation System
 
-A fully automated, AI-native personal n8n automation system running on a Parallels Desktop Ubuntu 24.04 VM with Docker Compose, HashiCorp Vault, Cloudflare Tunnel, Grafana Cloud observability, and an ZeroClaw AI agent.
+A fully automated, AI-native personal n8n automation system running on a Parallels Desktop Ubuntu 24.04 VM with Docker Compose, HashiCorp Vault, Cloudflare Tunnel, Grafana Cloud observability, and a NemoClaw AI agent.
 
 ## Architecture
 
@@ -8,7 +8,7 @@ A fully automated, AI-native personal n8n automation system running on a Paralle
 - **Automation Engine**: n8n workflow engine with PostgreSQL, Redis (queue mode), Vault (secrets)
 - **Networking**: Cloudflare Tunnel for secure webhook ingress
 - **Observability**: Grafana Alloy → Grafana Cloud (Mimir + Loki + dashboards + alerting)
-- **AI Agent**: ZeroClaw with 6 custom skills for managing the entire system
+- **AI Agent**: NemoClaw for managing the entire system
 - **Interface**: Makefile with ~30 targets for all operations
 
 ## Prerequisites (macOS Host)
@@ -17,7 +17,7 @@ A fully automated, AI-native personal n8n automation system running on a Paralle
 - **Terraform CLI** (`brew install terraform`)
 - **Git**
 
-Everything else (Docker, Node.js, ZeroClaw, etc.) is installed inside the VM automatically.
+Everything else (Docker, Node.js, NemoClaw, etc.) is installed inside the VM automatically.
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ git clone <repo-url> ~/CODE/sumit/n8n && cd ~/CODE/sumit/n8n
 # 2. Copy and fill in secrets
 cp .env.example .env
 make generate-secrets
-# Edit .env with your external secrets (Cloudflare, Grafana Cloud, ZeroClaw API key, domain)
+# Edit .env with your external secrets (Cloudflare, Grafana Cloud, NemoClaw API key, domain)
 
 # 3. Bootstrap everything
 make up
@@ -38,10 +38,10 @@ make up
 
 1. Validates all required environment variables
 2. Runs `terraform apply` (creates Ubuntu 24.04 VM via Parallels Desktop)
-3. Provisions VM with Docker, Node.js 22, ZeroClaw CLI
+3. Provisions VM with Docker, Node.js 22, NemoClaw CLI
 4. Syncs repo files into VM via SCP
 5. Starts 9-service Docker Compose stack (n8n, PostgreSQL, Vault, Redis, Cloudflared, Alloy, cAdvisor, node-exporter, vault-init)
-6. Seeds Vault with secrets, configures ZeroClaw agent
+6. Seeds Vault with secrets, configures NemoClaw agent
 7. Pushes dashboards and alerts to Grafana Cloud
 8. Runs health checks
 

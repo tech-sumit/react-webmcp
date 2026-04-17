@@ -19,16 +19,16 @@ resource "cloudflare_record" "n8n" {
   comment = "n8n automation engine - managed by Terraform"
 }
 
-# DNS CNAME for ZeroClaw gateway dashboard
-resource "cloudflare_record" "zeroclaw" {
+# DNS CNAME for NemoClaw gateway
+resource "cloudflare_record" "nemoclaw" {
   zone_id = data.cloudflare_zone.domain.id
-  name    = var.zeroclaw_subdomain
+  name    = var.nemoclaw_subdomain
   content = "${cloudflare_tunnel.n8n.id}.cfargotunnel.com"
   type    = "CNAME"
   proxied = true
   ttl     = 1
 
-  comment = "ZeroClaw AI Gateway - managed by Terraform"
+  comment = "NemoClaw AI Gateway - managed by Terraform"
 }
 
 # DNS CNAME for Pages CMS
@@ -61,11 +61,11 @@ resource "cloudflare_tunnel_config" "n8n" {
   tunnel_id  = cloudflare_tunnel.n8n.id
 
   config {
-    # ZeroClaw AI Gateway -- VM is on the Parallels shared network (VM_IP),
+    # NemoClaw AI Gateway -- VM is on the Parallels shared network (VM_IP),
     # directly reachable from cloudflared running with network_mode:host.
     ingress_rule {
-      hostname = "${var.zeroclaw_subdomain}.${var.cloudflare_domain}"
-      service  = "http://${var.vm_ip}:42617"
+      hostname = "${var.nemoclaw_subdomain}.${var.cloudflare_domain}"
+      service  = "http://${var.vm_ip}:18789"
     }
 
     # n8n -- reachable on host because of ports binding in docker-compose
@@ -88,23 +88,23 @@ resource "cloudflare_tunnel_config" "n8n" {
 }
 
 # =============================================================================
-# Cloudflare Access -- protect ZeroClaw behind email-gated login
+# Cloudflare Access -- protect NemoClaw behind email-gated login
 # Created only when cloudflare_access_email is set in .env
 # =============================================================================
 
-resource "cloudflare_access_application" "zeroclaw" {
+resource "cloudflare_access_application" "nemoclaw" {
   count      = var.cloudflare_access_email != "" ? 1 : 0
   account_id = var.cloudflare_account_id
-  name       = "ZeroClaw AI Gateway"
-  domain     = "${var.zeroclaw_subdomain}.${var.cloudflare_domain}"
+  name       = "NemoClaw AI Gateway"
+  domain     = "${var.nemoclaw_subdomain}.${var.cloudflare_domain}"
   type       = "self_hosted"
 
   session_duration = "24h"
 }
 
-resource "cloudflare_access_policy" "zeroclaw_allow" {
+resource "cloudflare_access_policy" "nemoclaw_allow" {
   count          = var.cloudflare_access_email != "" ? 1 : 0
-  application_id = cloudflare_access_application.zeroclaw[0].id
+  application_id = cloudflare_access_application.nemoclaw[0].id
   account_id     = var.cloudflare_account_id
   name           = "Allow owner"
   precedence     = 1

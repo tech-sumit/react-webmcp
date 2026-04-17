@@ -1,9 +1,20 @@
 ---
 /**
- * Base layout for all Website Factory generated sites.
- * Cursor CLI will extend this with proper SEO meta, OG tags, and structured data.
- * The layout reads from content/site.json for dynamic metadata.
+ * Base layout — loads design tokens from content/site.json (design object).
+ * Generated sites should not replace this file; codegen only edits components/pages.
  */
+
+interface DesignTokens {
+  heading_font?: string;
+  heading_weights?: string;
+  body_font?: string;
+  body_weights?: string;
+  google_fonts_href?: string;
+  accent_color?: string;
+  surface_tone?: string;
+  radius_scale?: string;
+  motion_level?: string;
+}
 
 interface Props {
   title?: string;
@@ -14,80 +25,138 @@ interface Props {
 import '../styles/global.css';
 import siteData from '../../content/site.json';
 
+type SiteJson = typeof siteData & {
+  deploy?: { site?: string; base?: string };
+};
+
+const sd = siteData as SiteJson;
+
 const {
-  title = siteData.seo?.title || siteData.business_name || 'Website',
-  description = siteData.seo?.description || siteData.headline || '',
-  image = siteData.hero_image || '/images/og-image.jpg',
+  title = sd.seo?.title || sd.business_name || 'Website',
+  description = sd.seo?.description || sd.headline || '',
+  image = sd.hero_image || '/images/og-image.jpg',
 } = Astro.props;
 
+/** OG / Twitter need absolute URLs when deploy.site is set (GitHub Pages). */
+function absOgImageUrl(raw: string): string {
+  if (!raw || raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  const origin = (sd.deploy?.site || '').replace(/\/$/, '');
+  if (!origin) return raw;
+  const base = (sd.deploy?.base || '').replace(/\/$/, '') || '';
+  const pathOnly = raw.replace(/^\//, '');
+  const path = `${base}/${pathOnly}`.replace(/\/{2,}/g, '/');
+  try {
+    return new URL(path, origin).href;
+  } catch {
+    return raw;
+  }
+}
+
+const design = (sd as { design?: DesignTokens }).design || {};
+const primary = sd.primary_color || '#2563EB';
+const accent = design.accent_color || primary;
+
+const fontsHref =
+  design.google_fonts_href ||
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
+
+const surface = design.surface_tone || 'light';
+const motion = design.motion_level || 'subtle';
+
+const radiusMap: Record<string, string> = {
+  none: '0px',
+  sm: '0.25rem',
+  md: '0.5rem',
+  lg: '0.75rem',
+  xl: '1rem',
+};
+const radius = radiusMap[design.radius_scale || 'md'] || radiusMap.md;
+
+const headingFamily = design.heading_font
+  ? `'${design.heading_font}', ui-serif, Georgia, serif`
+  : `'Inter', system-ui, sans-serif`;
+const bodyFamily = design.body_font
+  ? `'${design.body_font}', system-ui, sans-serif`
+  : `'Inter', system-ui, sans-serif`;
+
 const canonicalURL = new URL(Astro.url.pathname, Astro.site || 'https://example.com');
+const ogImageAbs = absOgImageUrl(typeof image === 'string' ? image : '/images/og-image.jpg');
 ---
 
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html
+  lang="en"
+  class="scroll-smooth"
+  data-surface-tone={surface}
+  data-motion={motion}
+>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="generator" content={Astro.generator} />
 
-    <!-- Primary Meta Tags -->
     <title>{title}</title>
     <meta name="title" content={title} />
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalURL} />
 
-    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonicalURL} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:image" content={image} />
+    <meta property="og:image" content={ogImageAbs} />
 
-    <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:url" content={canonicalURL} />
     <meta property="twitter:title" content={title} />
     <meta property="twitter:description" content={description} />
-    <meta property="twitter:image" content={image} />
+    <meta property="twitter:image" content={ogImageAbs} />
 
-    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <link href={fontsHref} rel="stylesheet" />
 
-    <!-- CSS Variables — Dynamic per-site colors from content/site.json -->
-    <style set:html={`
+    <style
+      set:html={`
       :root {
-        --color-primary: ${siteData.primary_color || '#2563EB'};
-        --color-primary-dark: color-mix(in srgb, var(--color-primary) 80%, black);
-        --color-primary-light: color-mix(in srgb, var(--color-primary) 80%, white);
-        --color-accent: #F59E0B;
-        --color-surface: #FFFFFF;
+        --color-primary: ${primary};
+        --color-primary-dark: color-mix(in srgb, ${primary} 80%, black);
+        --color-primary-light: color-mix(in srgb, ${primary} 80%, white);
+        --color-accent: ${accent};
+        --color-surface: #ffffff;
         --color-surface-dark: #111827;
-        --color-muted: #6B7280;
-        --font-heading: 'Inter', system-ui, sans-serif;
-        --font-body: 'Inter', system-ui, sans-serif;
+        --color-muted: #6b7280;
+        --font-heading: ${headingFamily};
+        --font-body: ${bodyFamily};
+        --radius-ds: ${radius};
+        --motion-level: ${motion};
+        ${
+          surface === 'dark'
+            ? `--color-page: #0f172a; --color-text: #f8fafc; --color-muted: #94a3b8;`
+            : surface === 'mixed'
+              ? `--color-page: #f8fafc; --color-text: #0f172a; --color-muted: #64748b;`
+              : `--color-page: #ffffff; --color-text: #111827; --color-muted: #6b7280;`
+        }
       }
-    `} />
+    `}
+    />
   </head>
-  <body class="min-h-screen bg-surface text-gray-900 font-body antialiased">
+  <body
+    class="min-h-screen antialiased font-body"
+    style={`background-color: var(--color-page); color: var(--color-text);`}
+  >
     <slot />
 
-    <!-- Structured Data (JSON-LD) — Cursor CLI will enhance this -->
     <script type="application/ld+json" set:html={JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "LocalBusiness",
-      "name": siteData.business_name,
-      "description": description,
-      "address": siteData.address,
-      "telephone": siteData.phone,
-      "url": canonicalURL.toString(),
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      name: sd.business_name,
+      description: description,
+      address: sd.address,
+      telephone: sd.phone,
+      url: canonicalURL.toString(),
     })} />
   </body>
 </html>

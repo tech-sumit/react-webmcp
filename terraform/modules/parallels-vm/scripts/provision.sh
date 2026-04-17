@@ -1,8 +1,9 @@
 #!/bin/bash
 ###############################################################################
 # VM Bootstrap Script
-# Installs Docker, Rust, ZeroClaw, and system utilities.
+# Installs Docker, Rust, and system utilities.
 # Called by Terraform post_processor_script.
+# NemoClaw itself is installed via Ansible (nemoclaw/ansible/).
 ###############################################################################
 set -euo pipefail
 
@@ -21,7 +22,7 @@ sudo usermod -aG docker "$USER"
 echo "Installing Docker Compose plugin..."
 sudo apt-get install -y docker-compose-plugin
 
-# Rust (for ZeroClaw)
+# Rust (for NemoClaw)
 echo "Installing Rust..."
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source "$HOME/.cargo/env"
@@ -30,14 +31,9 @@ source "$HOME/.cargo/env"
 echo "Installing utilities..."
 sudo apt-get install -y jq git curl make rsync build-essential pkg-config libssl-dev
 
-# ZeroClaw
-echo "Installing ZeroClaw..."
-cargo install zeroclaw
-
 # Create project directory
 mkdir -p /home/parallels/n8n
 
 echo "=== VM Provisioning Complete ==="
 echo "Docker: $(docker --version)"
 echo "Rust: $(rustc --version 2>/dev/null || echo 'installed')"
-echo "ZeroClaw: $(zeroclaw --version 2>/dev/null || echo 'installed')"

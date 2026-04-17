@@ -18,8 +18,10 @@ Data Sources -> Grafana Alloy (collector) -> Grafana Cloud (storage + dashboards
 | node-exporter | VM system metrics | Alloy scrape |
 | prldevops API | Parallels VM metrics | Alloy scrape |
 | Docker containers | Stdout/stderr logs | Alloy Docker log discovery |
-| ZeroClaw gateway | JSONL logs | Alloy file tail |
-| ZeroClaw telemetry | JSONL events | Alloy file tail |
+| NemoClaw gateway | JSONL logs | Alloy file tail |
+| NemoClaw telemetry | JSONL events | Alloy file tail |
+| Nord Meshnet control plane | Prometheus metrics | Alloy scrape via `HOST_IP:8789` |
+| Nord Meshnet control plane | JSONL logs | Alloy file tail from `data/nord-meshnet-logs/` |
 
 ### Grafana Cloud (Free Tier)
 
@@ -30,7 +32,7 @@ Data Sources -> Grafana Alloy (collector) -> Grafana Cloud (storage + dashboards
 
 ## Dashboards
 
-Five pre-built dashboards auto-provisioned from version-controlled JSON:
+Six pre-built dashboards auto-provisioned from version-controlled JSON:
 
 ### 1. n8n Overview (`n8n-overview`)
 - Workflow executions (success vs error rate)
@@ -50,7 +52,7 @@ Five pre-built dashboards auto-provisioned from version-controlled JSON:
 - VM memory usage gauge
 - VM disk usage gauge
 
-### 3. ZeroClaw Agent Activity (`zeroclaw-agent`)
+### 3. NemoClaw Agent Activity (`nemoclaw-agent`)
 - Tool call frequency
 - Tool call duration (average by tool)
 - LLM token usage over time
@@ -72,6 +74,13 @@ Five pre-built dashboards auto-provisioned from version-controlled JSON:
 - Error log volume
 - Filterable log stream (by service, level, keyword)
 
+### 6. Nord Meshnet Remote Desktop (`nord-meshnet-remote-desktop`)
+- Online Meshnet devices
+- Active remote desktop sessions
+- Session requests by state
+- Pairing-code creation rate
+- Warning/error volume from the control plane
+
 ### Provisioning Dashboards
 ```bash
 make dashboards-push    # Push all dashboards to Grafana Cloud
@@ -92,13 +101,13 @@ make alerts-push        # Push all alert rules
 | ContainerRestarting | Restarts > 3 in 15min | warning |
 | PostgresDown | Unreachable for 1min | critical |
 
-### ZeroClaw (4 rules)
+### NemoClaw (4 rules)
 | Alert | Condition | Severity |
 |-------|-----------|----------|
-| ZeroClawGatewayDown | Unreachable for 2min | critical |
-| ZeroClawHighLLMCost | Cost > $10/hour | warning |
-| ZeroClawToolFailureSpike | Failure rate > 30% for 5min | warning |
-| ZeroClawHighTokenBurn | Tokens > 500k/hour | warning |
+| NemoClawGatewayDown | Unreachable for 2min | critical |
+| NemoClawHighLLMCost | Cost > $10/hour | warning |
+| NemoClawToolFailureSpike | Failure rate > 30% for 5min | warning |
+| NemoClawHighTokenBurn | Tokens > 500k/hour | warning |
 
 ### Parallels Desktop (5 rules)
 | Alert | Condition | Severity |
@@ -161,9 +170,19 @@ curl -s -G \
 | Keyword search | `{container_name="n8n"} \|= "timeout"` |
 | JSON field | `{container_name="n8n"} \| json \| workflowId="123"` |
 
+### Nord Meshnet Queries
+
+| Goal | Query |
+|------|-------|
+| Online devices | `nord_meshnet_online_devices` |
+| Active sessions | `nord_meshnet_active_sessions` |
+| Session requests by state | `sum by (state) (rate(nord_meshnet_session_requests_total[5m]))` |
+| Pairing rate | `rate(nord_meshnet_pairing_codes_total[5m])` |
+| Control-plane warnings/errors | `{service="nord-meshnet-control-plane"} \| json \| level=~"warn\|error"` |
+
 ## AI Agent Observability
 
-The ZeroClaw agent can query all observability data via the `observe` skill:
+The NemoClaw agent can query all observability data via the `observe` skill:
 
 ```
 "How many workflows failed today?"
@@ -174,7 +193,7 @@ The ZeroClaw agent can query all observability data via the `observe` skill:
 "Which tool calls are failing?"
 ```
 
-See `zeroclaw/workspace/skills/observe/SKILL.md` for the complete query reference.
+See `nemoclaw/workspace/skills/observe/SKILL.md` for the complete query reference.
 
 ## Configuration
 

@@ -55,16 +55,16 @@ variable "cloudflare_domain" {
   default     = ""
 }
 
-variable "zeroclaw_subdomain" {
-  description = "Subdomain for ZeroClaw gateway (e.g., 'bot-0' for bot-0.panditai.org)"
+variable "nemoclaw_subdomain" {
+  description = "Subdomain for NemoClaw gateway (e.g., 'nemo' for nemo.panditai.org)"
   type        = string
-  default     = "bot-0"
+  default     = "nemo"
 }
 
 variable "vm_ip" {
   description = "IP address of the Parallels VM on the shared network (VM_IP in .env)"
   type        = string
-  default     = "10.211.55.10"
+  default     = "10.211.55.17"
 }
 
 variable "cms_subdomain" {
@@ -74,7 +74,7 @@ variable "cms_subdomain" {
 }
 
 variable "cloudflare_access_email" {
-  description = "Owner email for Cloudflare Access on ZeroClaw gateway"
+  description = "Owner email for Cloudflare Access on NemoClaw gateway"
   type        = string
   default     = ""
 }

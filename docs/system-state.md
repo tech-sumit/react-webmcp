@@ -2,7 +2,7 @@
 
 **Last synchronized**: 2026-02-14  
 **n8n version**: 2.7.5  
-**ZeroClaw version**: 2026.2.12  
+**NemoClaw version**: 2026.2.12  
 **Platform**: macOS (arm64) + Parallels Desktop VM (Ubuntu 24.04 arm64)
 
 ---
@@ -13,7 +13,7 @@
 2. [Infrastructure Layout](#infrastructure-layout)
 3. [Service Status & Endpoints](#service-status--endpoints)
 4. [Docker Stack](#docker-stack)
-5. [Parallels VM (ZeroClaw)](#parallels-vm-zeroclaw)
+5. [Parallels VM (NemoClaw)](#parallels-vm-nemoclaw)
 6. [MCP Integration](#mcp-integration)
 7. [n8n Workflows](#n8n-workflows)
 8. [Terraform Infrastructure](#terraform-infrastructure)
@@ -47,18 +47,18 @@
 │                                                                     │
 │  ┌─────────────────────┐    ┌────────────────────────┐             │
 │  │   Cursor IDE         │    │   Cloudflare Tunnel     │             │
-│  │   MCP: n8n + zeroclaw│    │   n8n.panditai.org      │             │
+│  │   MCP: n8n + nemoclaw│    │   n8n.panditai.org      │             │
 │  └─────────────────────┘    └────────────────────────┘             │
 │                                                                     │
-│  NAT Port Forwarding: 2222→22 (SSH), 42617→42617 (ZeroClaw)       │
+│  NAT Port Forwarding: 2222→22 (SSH), 18789→18789 (NemoClaw)       │
 │                                                                     │
 │  ┌─────────────────────────────────────────────────────────────┐   │
 │  │            Parallels VM: n8n-ai-worker                       │   │
 │  │            Ubuntu 24.04 (arm64 + Rosetta)                    │   │
 │  │                                                              │   │
 │  │  ┌──────────────────────────────────────┐                   │   │
-│  │  │        ZeroClaw Gateway              │                   │   │
-│  │  │  ws://10.211.55.8:42617              │                   │   │
+│  │  │        NemoClaw Gateway              │                   │   │
+│  │  │  ws://10.211.55.8:18789              │                   │   │
 │  │  │  Agent: main (claude-sonnet-4)       │                   │   │
 │  │  │  Tools: exec, read, write, browser,  │                   │   │
 │  │  │         web_search, cron, message... │                   │   │
@@ -67,7 +67,7 @@
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Design principle**: Docker services run on the macOS host for native performance and simpler volume mounts. The Parallels VM exists solely to run the ZeroClaw AI agent in an isolated Linux environment.
+**Design principle**: Docker services run on the macOS host for native performance and simpler volume mounts. The Parallels VM exists solely to run the NemoClaw AI agent in an isolated Linux environment.
 
 ---
 
@@ -83,14 +83,14 @@
 | Grafana Alloy | Docker on host | Sends metrics/logs to Grafana Cloud |
 | cAdvisor | Docker on host | Container metrics collector |
 | Node Exporter | Docker on host | Host metrics collector |
-| ZeroClaw Gateway | Parallels VM | `localhost:42617` (NAT), `ws://10.211.55.8:42617` (VM LAN) |
-| ZeroClaw Agent | Parallels VM | `zeroclaw agent --local --agent main` |
+| NemoClaw Gateway | Parallels VM | `localhost:18789` (NAT), `ws://10.211.55.8:18789` (VM LAN) |
+| NemoClaw Agent | Parallels VM | `nemoclaw agent --local --agent main` |
 
 ### Network Topology
 
 - **Host IP (from VM perspective)**: `10.211.55.2`
 - **VM IP (LAN)**: `10.211.55.8`
-- **NAT Port Forwards**: SSH `2222→22`, ZeroClaw `42617→42617`
+- **NAT Port Forwards**: SSH `2222→22`, NemoClaw `18789→18789`
 - **Cloudflare Tunnel**: `n8n.panditai.org` → `http://n8n:5678`
 
 ---
@@ -128,8 +128,8 @@
 | Status | running |
 | OS | Ubuntu 24.04 (arm64 + Rosetta) |
 | Node.js | 22.22.0 |
-| ZeroClaw | 2026.2.12 (update 2026.2.13 available) |
-| Gateway | `ws://10.211.55.8:42617` (LAN-bound) |
+| NemoClaw | 2026.2.12 (update 2026.2.13 available) |
+| Gateway | `ws://10.211.55.8:18789` (LAN-bound) |
 | Auth mode | Token (`1b6c6dde6e488ad4e79e5dc2ab550ca5`) |
 | Agent model | `claude-sonnet-4-20250514` (200k context) |
 | Gateway pairing | **Required but not configured** (see Known Issues) |
@@ -178,22 +178,22 @@
 
 ---
 
-## Parallels VM (ZeroClaw)
+## Parallels VM (NemoClaw)
 
 ### Setup Pipeline
 
 ```
 make vm-create          # Clone from "Ubuntu 24.04 (with Rosetta)" template
-make vm-ports           # NAT: 2222→22, 42617→42617
-make vm-provision-zeroclaw  # Install Node.js 22 + zeroclaw@latest
-make vm-setup-zeroclaw  # Configure + start gateway
+make vm-ports           # NAT: 2222→22, 18789→18789
+make vm-provision-nemoclaw  # Install Node.js 22 + nemoclaw@latest
+make vm-setup-nemoclaw  # Configure + start gateway
 ```
 
-### ZeroClaw Agent Configuration
+### NemoClaw Agent Configuration
 
-- **Config file**: `~/.zeroclaw/zeroclaw.json` (VM)
-- **Workspace**: `~/.zeroclaw/workspace/` (synced from `zeroclaw/workspace/`)
-- **Gateway**: Bound to LAN (`0.0.0.0:42617`), token auth
+- **Config file**: `~/.nemoclaw/nemoclaw.json` (VM)
+- **Workspace**: `~/.nemoclaw/workspace/` (synced from `nemoclaw/workspace/`)
+- **Gateway**: Bound to LAN (`0.0.0.0:18789`), token auth
 - **Model**: Anthropic Claude Sonnet 4 (`claude-sonnet-4-20250514`)
 - **Tools available** (23 tools):
   - File: `read`, `edit`, `write`
@@ -206,7 +206,7 @@ make vm-setup-zeroclaw  # Configure + start gateway
   - Memory: `memory_search`, `memory_get`
   - Infrastructure: `nodes`
 
-### ZeroClaw Workspace Files
+### NemoClaw Workspace Files
 
 | File | Purpose |
 |------|---------|
@@ -249,17 +249,17 @@ Verified capabilities:
 - Get workflow details (full node/connection/trigger info)
 - Execute workflows (webhook-based execution with result)
 
-#### 2. ZeroClaw MCP (Partial)
+#### 2. NemoClaw MCP (Partial)
 
 | Property | Value |
 |----------|-------|
-| Bridge | `zeroclaw-mcp` npm package (stdio transport) |
-| Gateway URL | `http://127.0.0.1:42617` |
+| Bridge | `nemoclaw-mcp` npm package (stdio transport) |
+| Gateway URL | `http://127.0.0.1:18789` |
 | Auth | Gateway token |
-| Tools | `zeroclaw_chat`, `zeroclaw_status`, `zeroclaw_chat_async`, `zeroclaw_task_status`, `zeroclaw_task_list`, `zeroclaw_task_cancel` |
+| Tools | `nemoclaw_chat`, `nemoclaw_status`, `nemoclaw_chat_async`, `nemoclaw_task_status`, `nemoclaw_task_list`, `nemoclaw_task_cancel` |
 | Status | **Gateway pairing required** -- MCP bridge returns 405 |
 
-**Workaround**: ZeroClaw agent works via direct SSH + `zeroclaw agent --local --agent main --message "..."` from the VM.
+**Workaround**: NemoClaw agent works via direct SSH + `nemoclaw agent --local --agent main --message "..."` from the VM.
 
 ### MCP-Enabled n8n Workflows
 
@@ -280,16 +280,16 @@ Only workflows with webhook/form/schedule/chat triggers that are published can b
 | `w2MtAhvrWWXe7rJ8` | MCP Test - Hello World | Yes | Cursor (API) |
 | `9cl6LOz8uen82lPF` | MCP Test - Get Weather | No | Cursor (API) |
 | `KBhF3xj30x1Uo9PU` | Personal life manager with Telegram... | No | Template import |
-| `2tXahVtl0oztokeQ` | ZeroClaw Agent Workflow | Yes | ZeroClaw (VM script) |
-| `3GGKMSlOv34X7OgU` | ZeroClaw Agent Workflow | No | ZeroClaw (agent) |
+| `2tXahVtl0oztokeQ` | NemoClaw Agent Workflow | Yes | NemoClaw (VM script) |
+| `3GGKMSlOv34X7OgU` | NemoClaw Agent Workflow | No | NemoClaw (agent) |
 
 ### Webhook Endpoints
 
 | Path | Method | Workflow |
 |------|--------|----------|
 | `/webhook/mcp-hello` | POST | MCP Test - Hello World |
-| `/webhook/zeroclaw-agent-test` | POST | ZeroClaw Agent Workflow |
-| `/webhook/zeroclaw-test` | POST | ZeroClaw Agent Workflow (2nd) |
+| `/webhook/nemoclaw-agent-test` | POST | NemoClaw Agent Workflow |
+| `/webhook/nemoclaw-test` | POST | NemoClaw Agent Workflow (2nd) |
 
 ---
 
@@ -389,7 +389,7 @@ Only workflows with webhook/form/schedule/chat triggers that are published can b
 
 ### Critical
 
-1. **ZeroClaw gateway pairing not configured** -- The WebSocket gateway requires device pairing (`1008: pairing required`). The `zeroclaw-mcp` Cursor bridge fails with HTTP 405 because it can't establish a WebSocket session. **Workaround**: Use `zeroclaw agent --local` via SSH into the VM.
+1. **NemoClaw gateway pairing not configured** -- The WebSocket gateway requires device pairing (`1008: pairing required`). The `nemoclaw-mcp` Cursor bridge fails with HTTP 405 because it can't establish a WebSocket session. **Workaround**: Use `nemoclaw agent --local` via SSH into the VM.
 
 ### Moderate
 
@@ -403,7 +403,7 @@ Only workflows with webhook/form/schedule/chat triggers that are published can b
 
 5. **node-exporter `rslave` not supported on macOS** -- Fixed: removed `,rslave` from volume mount in `docker-compose.yml`.
 
-6. **ZeroClaw update available** -- 2026.2.13 is available (currently running 2026.2.12).
+6. **NemoClaw update available** -- 2026.2.13 is available (currently running 2026.2.12).
 
 7. **Vault dev mode** -- Data is in-memory; restarts lose secrets. Acceptable for development.
 
@@ -433,16 +433,16 @@ make workflows-export           # Sync n8n → disk
 make workflows-import           # Sync disk → n8n
 ```
 
-### ZeroClaw Agent
+### NemoClaw Agent
 
 ```bash
-make agent MSG="Your task here"       # Send task to ZeroClaw
-make agent-status                     # Check ZeroClaw status
+make agent MSG="Your task here"       # Send task to NemoClaw
+make agent-status                     # Check NemoClaw status
 make vm-ssh                           # SSH into VM
 
 # Direct agent execution (from VM)
-zeroclaw agent --local --agent main --message "..."
-zeroclaw agent --local --agent main --json --timeout 120 --message "..."
+nemoclaw agent --local --agent main --message "..."
+nemoclaw agent --local --agent main --json --timeout 120 --message "..."
 ```
 
 ### Backup & Recovery
@@ -455,7 +455,7 @@ make restore BACKUP=file   # Restore from backup
 ### Infrastructure
 
 ```bash
-make up         # Full bootstrap (Terraform + Docker + VM + ZeroClaw)
+make up         # Full bootstrap (Terraform + Docker + VM + NemoClaw)
 make destroy    # Full teardown
 make tf-plan    # Preview Terraform changes
 make tf-apply   # Apply Terraform
@@ -476,8 +476,8 @@ python3 -u analyze_templates.py    # Regenerate knowledge database
 | Commit | Message |
 |--------|---------|
 | `d152eb0` | feat: add n8n template downloader, analyzer, and node knowledge database |
-| `6dce072` | refactor: run Docker stack on macOS host, VM for ZeroClaw only |
-| `16c4d2a` | fix: keep ZeroClaw files in zeroclaw/, .cursor/ for Cursor only |
+| `6dce072` | refactor: run Docker stack on macOS host, VM for NemoClaw only |
+| `16c4d2a` | fix: keep NemoClaw files in nemoclaw/, .cursor/ for Cursor only |
 | `63b1987` | refactor: move prompts, rules, skills to .cursor/ |
 | `498c6b7` | fix: on_destroy_script uses docker compose down instead of make destroy |
 | `fb2cc07` | simplify: remove dead code, strip Cloudflare to tunnel-only, postgres-only backup |
@@ -507,7 +507,7 @@ n8n/
 │       ├── init.sh                   # Vault seeder script
 │       └── policies/n8n-policy.hcl   # Vault access policy
 ├── scripts/
-│   ├── zeroclaw-setup.sh             # VM ZeroClaw provisioning
+│   ├── nemoclaw-setup.sh             # VM NemoClaw provisioning
 │   ├── health-check.sh               # System health checks
 │   ├── backup.sh                     # PostgreSQL backup
 │   ├── n8n-ctl.sh                    # Workflow CRUD operations
@@ -523,7 +523,7 @@ n8n/
 │       ├── cloudflare/               # DNS + Tunnel
 │       ├── s3/                       # Backup storage
 │       └── github/                   # Repository management
-├── zeroclaw/
+├── nemoclaw/
 │   └── workspace/                    # Synced to VM
 │       ├── AGENTS.md                 # Agent config
 │       ├── TOOLS.md                  # Tool definitions

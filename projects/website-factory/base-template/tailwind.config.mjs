@@ -6,6 +6,9 @@ export default {
   content: ['./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}'],
   theme: {
     extend: {
+      borderRadius: {
+        ds: 'var(--radius-ds, 0.5rem)',
+      },
       colors: {
         primary: 'var(--color-primary, #2563EB)',
         'primary-dark': 'var(--color-primary-dark, #1D4ED8)',

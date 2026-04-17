@@ -9,7 +9,7 @@
 #   ./scripts/dry-run.sh                    # Content only
 #   ./scripts/dry-run.sh --site            # Content + Claude API site gen
 #
-# Required: ANTHROPIC_API_KEY (or ZEROCLAW_API_KEY) in env or .env
+# Required: ANTHROPIC_API_KEY (or NEMOCLAW_API_KEY) in env or .env
 # ============================================================
 
 set -euo pipefail
@@ -27,9 +27,9 @@ if [[ -f "${REPO_ROOT}/.env" ]]; then
   set +a
 fi
 
-ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-${ZEROCLAW_API_KEY:-}}"
+ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-${NEMOCLAW_API_KEY:-}}"
 if [[ -z "${ANTHROPIC_API_KEY}" ]]; then
-  echo "ERROR: ANTHROPIC_API_KEY or ZEROCLAW_API_KEY required"
+  echo "ERROR: ANTHROPIC_API_KEY or NEMOCLAW_API_KEY required"
   exit 1
 fi
 

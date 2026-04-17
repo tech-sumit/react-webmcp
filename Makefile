@@ -25,7 +25,9 @@ VM_SCP        := scp -o StrictHostKeyChecking=no -P $(VM_SSH_PORT)
 HOST_IP       ?= 10.211.55.2
 N8N_PORT      ?= 5678
 VAULT_PORT    ?= 8200
-ZEROCLAW_PORT ?= 42617
+NEMOCLAW_PORT         ?= 18789
+NEMOCLAW_SANDBOX_NAME ?= panditai
+NVIDIA_API_KEY        ?=
 TZ            ?= UTC
 
 # Core variables -- required for the stack to start
@@ -36,7 +38,7 @@ CORE_VARS := POSTGRES_PASSWORD N8N_ENCRYPTION_KEY N8N_WEBHOOK_URL N8N_API_KEY \
 OPTIONAL_VARS := CLOUDFLARE_DOMAIN CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID \
                  GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_LOKI_URL \
                  GRAFANA_CLOUD_USER GRAFANA_CLOUD_API_KEY GRAFANA_CLOUD_STACK_URL \
-                 ZEROCLAW_API_KEY
+                 NEMOCLAW_API_KEY
 
 ###############################################################################
 # Configuration
@@ -119,25 +121,25 @@ generate-secrets: ## Generate random values for internal secrets
 	@grep -q '^REDIS_PASSWORD=$$' .env 2>/dev/null && \
 		sed -i '' "s/^REDIS_PASSWORD=$$/REDIS_PASSWORD=$$(openssl rand -base64 16 | tr -d '/+=' | head -c 24)/" .env && \
 		echo "  Generated REDIS_PASSWORD" || true
-	@echo "Done. Review .env and fill in remaining REQUIRED values (Cloudflare, Grafana Cloud, ZeroClaw API key)."
+	@echo "Done. Review .env and fill in remaining REQUIRED values (Cloudflare, Grafana Cloud, NemoClaw API key)."
 
 ###############################################################################
-# Lifecycle (Host Docker + VM ZeroClaw)
+# Lifecycle (Host Docker + VM NemoClaw)
 ###############################################################################
 
 .PHONY: up
-up: check-env sudo-cache ensure-prldevops tf-init docker-up vm-create vm-ports tf-apply vm-setup-zeroclaw health ## Full bootstrap: start stack on host + ZeroClaw in VM (Ansible provisions VM during tf-apply)
+up: check-env sudo-cache ensure-prldevops tf-init docker-up vm-create vm-ports tf-apply vm-setup-nemoclaw health ## Full bootstrap: start stack on host + NemoClaw in VM (Ansible provisions VM during tf-apply)
 	@echo ""
 	@echo "=== System is UP ==="
 	@echo "n8n:       http://localhost:$(N8N_PORT)"
 	@echo "Vault:     http://localhost:$(VAULT_PORT)"
-	@echo "ZeroClaw:  http://localhost:$(ZEROCLAW_PORT) (via VM)"
+	@echo "NemoClaw:  http://localhost:$(NEMOCLAW_PORT) (via VM)"
 	@echo "VM SSH:    ssh -p $(VM_SSH_PORT) $(VM_USER)@localhost"
 
 .PHONY: docker-up
 docker-up: ## Start Docker stack on host + seed Vault
 	@echo "=== Starting Docker stack on host ==="
-	@mkdir -p data/n8n data/postgres data/vault data/redis data/zeroclaw-logs
+	@mkdir -p data/n8n data/postgres data/vault data/redis data/nemoclaw-logs
 	docker compose up -d
 	@echo "Waiting for Vault to be ready..."
 	@for i in $$(seq 1 30); do \
@@ -213,8 +215,9 @@ status: ## Show VM state, container health, n8n version, Vault seal status
 # VM Management (via prlctl -- no Terraform dependency)
 ###############################################################################
 
-# Helper: get VM IP address via prlctl exec
-VM_IP_CMD = prlctl exec "$(VM_NAME)" "ip -4 addr show enp0s5" 2>/dev/null | grep inet | awk '{print $$2}' | cut -d/ -f1
+# Helper: get VM IP address (tries prlctl list -f first, falls back to prlctl exec)
+VM_IP_CMD = prlctl list -f 2>/dev/null | grep "$(VM_NAME)" | awk '{print $$3}' | grep -v '^-$$'
+VM_IP_CMD_EXEC = prlctl exec "$(VM_NAME)" "ip -4 addr show enp0s5" 2>/dev/null | grep inet | awk '{print $$2}' | cut -d/ -f1
 
 .PHONY: vm-create
 vm-create: ## Create VM by cloning template (or skip if already exists)
@@ -249,7 +252,7 @@ vm-create: ## Create VM by cloning template (or skip if already exists)
 		prlctl start "$(VM_NAME)"; \
 	fi
 	@echo "Waiting for VM to get an IP..."
-	@for i in $$(seq 1 60); do \
+	@for i in $$(seq 1 90); do \
 		IP=$$($(VM_IP_CMD)); \
 		if [ -n "$$IP" ]; then \
 			echo "VM IP: $$IP"; \
@@ -258,25 +261,35 @@ vm-create: ## Create VM by cloning template (or skip if already exists)
 		sleep 2; \
 	done
 	@echo "Waiting for SSH to be ready..."
-	@for i in $$(seq 1 30); do \
-		prlctl exec "$(VM_NAME)" "echo SSH ready" 2>/dev/null && break || sleep 2; \
+	@VM_IP=$$($(VM_IP_CMD)); \
+	for i in $$(seq 1 60); do \
+		sshpass -p $(VM_PASSWORD) ssh -o StrictHostKeyChecking=no -o ConnectTimeout=3 \
+			-o PreferredAuthentications=password -o PubkeyAuthentication=no \
+			$(VM_USER)@$$VM_IP "echo SSH ready" 2>/dev/null && break; \
+		sleep 3; \
 	done
 	@echo "Setting up SSH key auth..."
-	@SSH_KEY=$$(cat $$HOME/.ssh/id_ed25519.pub 2>/dev/null || cat $$HOME/.ssh/id_rsa.pub 2>/dev/null); \
+	@VM_IP=$$($(VM_IP_CMD)); \
+	SSH_KEY=$$(cat $$HOME/.ssh/id_ed25519.pub 2>/dev/null || cat $$HOME/.ssh/id_rsa.pub 2>/dev/null); \
 	if [ -n "$$SSH_KEY" ]; then \
-		prlctl exec "$(VM_NAME)" "mkdir -p /home/$(VM_USER)/.ssh && grep -qF '$$SSH_KEY' /home/$(VM_USER)/.ssh/authorized_keys 2>/dev/null || echo '$$SSH_KEY' >> /home/$(VM_USER)/.ssh/authorized_keys && chmod 700 /home/$(VM_USER)/.ssh && chmod 600 /home/$(VM_USER)/.ssh/authorized_keys"; \
+		sshpass -p $(VM_PASSWORD) ssh -o StrictHostKeyChecking=no \
+			-o PreferredAuthentications=password -o PubkeyAuthentication=no \
+			$(VM_USER)@$$VM_IP \
+			"mkdir -p ~/.ssh && grep -qF '$$SSH_KEY' ~/.ssh/authorized_keys 2>/dev/null || echo '$$SSH_KEY' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"; \
 		echo "SSH key installed."; \
 	else \
-		echo "WARN: No SSH public key found (~/.ssh/id_ed25519.pub or id_rsa.pub). You'll need to set up SSH auth manually."; \
+		echo "WARN: No SSH public key found. You'll need to set up SSH auth manually."; \
 	fi
 	@echo "Configuring passwordless sudo..."
-	@prlctl exec "$(VM_NAME)" "echo '$(VM_USER) ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/$(VM_USER) && chmod 440 /etc/sudoers.d/$(VM_USER)"
-	@echo "Setting user password..."
-	@prlctl exec "$(VM_NAME)" "echo '$(VM_USER):$(VM_PASSWORD)' | chpasswd"
+	@VM_IP=$$($(VM_IP_CMD)); \
+	sshpass -p $(VM_PASSWORD) ssh -o StrictHostKeyChecking=no \
+		-o PreferredAuthentications=password -o PubkeyAuthentication=no \
+		$(VM_USER)@$$VM_IP \
+		"echo '$(VM_USER) ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/$(VM_USER) >/dev/null && sudo chmod 440 /etc/sudoers.d/$(VM_USER)"
 	@echo "VM '$(VM_NAME)' is running."
 
 .PHONY: vm-ports
-vm-ports: ## Set up NAT port forwarding (SSH + ZeroClaw + node-exporter)
+vm-ports: ## Set up NAT port forwarding (SSH + NemoClaw + node-exporter)
 	@echo "=== Setting up port forwarding ==="
 	@VM_IP=$$($(VM_IP_CMD)); \
 	if [ -z "$$VM_IP" ]; then \
@@ -288,81 +301,117 @@ vm-ports: ## Set up NAT port forwarding (SSH + ZeroClaw + node-exporter)
 	prlsrvctl net set Shared --nat-tcp-add n8n-ssh,$(VM_SSH_PORT),$$VM_IP,22 2>/dev/null || \
 		(prlsrvctl net set Shared --nat-tcp-del n8n-ssh 2>/dev/null; \
 		 prlsrvctl net set Shared --nat-tcp-add n8n-ssh,$(VM_SSH_PORT),$$VM_IP,22); \
-	echo "  Forwarding localhost:$(ZEROCLAW_PORT) -> $$VM_IP:$(ZEROCLAW_PORT) (ZeroClaw)"; \
-	prlsrvctl net set Shared --nat-tcp-add n8n-zeroclaw,$(ZEROCLAW_PORT),$$VM_IP,$(ZEROCLAW_PORT) 2>/dev/null || \
-		(prlsrvctl net set Shared --nat-tcp-del n8n-zeroclaw 2>/dev/null; \
-		 prlsrvctl net set Shared --nat-tcp-add n8n-zeroclaw,$(ZEROCLAW_PORT),$$VM_IP,$(ZEROCLAW_PORT)); \
+	echo "  Forwarding localhost:$(NEMOCLAW_PORT) -> $$VM_IP:$(NEMOCLAW_PORT) (NemoClaw)"; \
+	prlsrvctl net set Shared --nat-tcp-add n8n-nemoclaw,$(NEMOCLAW_PORT),$$VM_IP,$(NEMOCLAW_PORT) 2>/dev/null || \
+		(prlsrvctl net set Shared --nat-tcp-del n8n-nemoclaw 2>/dev/null; \
+		 prlsrvctl net set Shared --nat-tcp-add n8n-nemoclaw,$(NEMOCLAW_PORT),$$VM_IP,$(NEMOCLAW_PORT)); \
 	echo "  Forwarding localhost:9100 -> $$VM_IP:9100 (node-exporter)"; \
 	prlsrvctl net set Shared --nat-tcp-add n8n-node-exporter,9100,$$VM_IP,9100 2>/dev/null || \
 		(prlsrvctl net set Shared --nat-tcp-del n8n-node-exporter 2>/dev/null; \
 		 prlsrvctl net set Shared --nat-tcp-add n8n-node-exporter,9100,$$VM_IP,9100); \
-	echo "Port forwarding configured (SSH + ZeroClaw + node-exporter)."
+	echo "Port forwarding configured (SSH + NemoClaw + node-exporter)."
 
-.PHONY: vm-provision-zeroclaw
-vm-provision-zeroclaw: ## Provision VM: create zeroclaw user, install Rust toolchain + build ZeroClaw
-	@echo "=== Provisioning VM (ZeroClaw) ==="
+.PHONY: vm-provision-nemoclaw
+vm-provision-nemoclaw: ## Provision VM: create nemoclaw user, install Node.js + OpenShell + NemoClaw
+	@echo "=== Provisioning VM (NemoClaw) ==="
 	@echo "Waiting for any background apt to finish..."
 	@$(VM_SSH) 'while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo "  apt lock held, waiting..."; sleep 5; done'
-	@echo "Creating zeroclaw system user..."
-	@$(VM_SSH) 'sudo useradd -m -s /bin/bash zeroclaw 2>/dev/null || true && \
-		sudo usermod -aG sudo zeroclaw 2>/dev/null || true && \
-		echo "zeroclaw ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/zeroclaw >/dev/null && \
-		sudo chmod 440 /etc/sudoers.d/zeroclaw && \
-		echo "  User zeroclaw ready"'
-	@echo "Installing build dependencies + Rust + ZeroClaw..."
+	@echo "Creating nemoclaw system user..."
+	@$(VM_SSH) 'sudo useradd -m -s /bin/bash nemoclaw 2>/dev/null || true && \
+		sudo usermod -aG sudo,docker nemoclaw 2>/dev/null || true && \
+		echo "nemoclaw ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/nemoclaw >/dev/null && \
+		sudo chmod 440 /etc/sudoers.d/nemoclaw && \
+		echo "  User nemoclaw ready"'
+	@echo "Installing system dependencies..."
 	$(VM_SSH) 'set -euo pipefail && export DEBIAN_FRONTEND=noninteractive && \
 		sudo apt-get update && \
-		sudo apt-get install -y jq curl build-essential pkg-config libssl-dev && \
-		if [ ! -f "$$HOME/.cargo/bin/rustc" ]; then \
-			curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal; \
+		sudo apt-get install -y jq curl ca-certificates'
+	@echo "Installing Node.js via nvm for nemoclaw user..."
+	$(VM_SSH) 'sudo -H -u nemoclaw bash -c "set -euo pipefail && \
+		export HOME=/home/nemoclaw && \
+		if [ ! -s /home/nemoclaw/.nvm/nvm.sh ]; then \
+			curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash; \
 		fi && \
-		export PATH="$$HOME/.cargo/bin:$$PATH" && \
-		echo "Rust: $$(rustc --version)" && \
-		mkdir -p $$HOME/code && \
-		if [ ! -d "$$HOME/code/zeroclaw/.git" ]; then \
-			git clone https://github.com/zeroclaw-labs/zeroclaw.git $$HOME/code/zeroclaw; \
+		export NVM_DIR=/home/nemoclaw/.nvm && \
+		. /home/nemoclaw/.nvm/nvm.sh && \
+		nvm install 22 && \
+		nvm alias default 22 && \
+		echo \"Node.js: \$$(node --version), npm: \$$(npm --version)\""'
+	@echo "Installing OpenShell binary..."
+	$(VM_SSH) 'set -euo pipefail && \
+		if command -v openshell >/dev/null 2>&1; then \
+			echo "OpenShell already installed"; \
 		else \
-			cd $$HOME/code/zeroclaw && git pull; \
-		fi && \
-		cd $$HOME/code/zeroclaw && cargo build --release --locked && \
-		install -m 0755 target/release/zeroclaw $$HOME/.cargo/bin/zeroclaw && \
-		sudo mkdir -p /home/zeroclaw/.cargo/bin && \
-		sudo cp $$HOME/.cargo/bin/zeroclaw /home/zeroclaw/.cargo/bin/zeroclaw && \
-		sudo chown -R zeroclaw:zeroclaw /home/zeroclaw/.cargo && \
-		echo "export PATH=\\$$HOME/.cargo/bin:\\$$PATH" | sudo tee -a /home/zeroclaw/.bashrc >/dev/null && \
-		echo "Provisioning complete: $$(zeroclaw --version 2>/dev/null || echo zeroclaw installed)"'
-
-.PHONY: vm-setup-zeroclaw
-vm-setup-zeroclaw: ## Configure and start ZeroClaw in the VM
-	@echo "=== Setting up ZeroClaw in VM ==="
-	@echo "Installing zeroclaw-gateway systemd service..."
-	@$(VM_SSH) 'printf "[Unit]\nDescription=ZeroClaw AI Gateway\nAfter=network.target\nWants=network.target\nStartLimitIntervalSec=0\n\n[Service]\nType=simple\nUser=zeroclaw\nGroup=zeroclaw\nWorkingDirectory=/home/zeroclaw\nEnvironment=HOME=/home/zeroclaw\nEnvironment=PATH=/home/zeroclaw/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nExecStart=/home/zeroclaw/.cargo/bin/zeroclaw gateway --port $(ZEROCLAW_PORT) --host 0.0.0.0\nRestart=always\nRestartSec=5\nStandardOutput=append:/home/zeroclaw/.zeroclaw/logs/gateway.log\nStandardError=append:/home/zeroclaw/.zeroclaw/logs/gateway.log\n\n[Install]\nWantedBy=multi-user.target\n" | sudo tee /etc/systemd/system/zeroclaw-gateway.service >/dev/null && \
-		sudo systemctl daemon-reload && sudo systemctl enable zeroclaw-gateway 2>/dev/null && \
-		sudo ufw allow $(ZEROCLAW_PORT)/tcp comment "ZeroClaw gateway" 2>/dev/null || true'
-	@echo "Copying ZeroClaw setup script to VM..."
-	$(VM_SCP) scripts/zeroclaw-setup.sh $(VM_USER)@localhost:/tmp/zeroclaw-setup.sh
-	@if [ -d zeroclaw/workspace ]; then \
-		echo "Syncing ZeroClaw workspace files to VM..."; \
-		$(VM_SSH) "sudo mkdir -p /home/zeroclaw/.zeroclaw/workspace/skills /home/zeroclaw/.zeroclaw/logs && sudo chown -R zeroclaw:zeroclaw /home/zeroclaw/.zeroclaw"; \
-		rsync -avz --progress \
+			ARCH=$$(uname -m); \
+			case "$$ARCH" in \
+				x86_64|amd64) ASSET="openshell-x86_64-unknown-linux-musl.tar.gz" ;; \
+				aarch64|arm64) ASSET="openshell-aarch64-unknown-linux-musl.tar.gz" ;; \
+				*) echo "Unsupported arch: $$ARCH"; exit 1 ;; \
+			esac; \
+			tmpdir=$$(mktemp -d); \
+			curl -fsSL "https://github.com/NVIDIA/OpenShell/releases/latest/download/$$ASSET" -o "$$tmpdir/$$ASSET"; \
+			tar xzf "$$tmpdir/$$ASSET" -C "$$tmpdir"; \
+			sudo install -m 755 "$$tmpdir/openshell" /usr/local/bin/openshell; \
+			rm -rf "$$tmpdir"; \
+			echo "OpenShell installed"; \
+		fi'
+	@echo "Syncing NemoClaw source from external/NemoClaw to VM..."
+	@if [ -d external/NemoClaw ]; then \
+		rsync -avz --progress --exclude node_modules --exclude .git \
 			-e "ssh -o StrictHostKeyChecking=no -p $(VM_SSH_PORT)" \
-			zeroclaw/workspace/ $(VM_USER)@localhost:/tmp/zeroclaw-workspace/; \
-		$(VM_SSH) "sudo cp -r /tmp/zeroclaw-workspace/. /home/zeroclaw/.zeroclaw/workspace/ && sudo chown -R zeroclaw:zeroclaw /home/zeroclaw/.zeroclaw/workspace"; \
+			external/NemoClaw/ $(VM_USER)@localhost:/tmp/nemoclaw-source/; \
+		$(VM_SSH) 'sudo mkdir -p /home/nemoclaw/code && \
+			sudo rm -rf /home/nemoclaw/code/nemoclaw && \
+			sudo cp -r /tmp/nemoclaw-source /home/nemoclaw/code/nemoclaw && \
+			sudo chown -R nemoclaw:nemoclaw /home/nemoclaw/code && \
+			rm -rf /tmp/nemoclaw-source'; \
+		echo "Installing NemoClaw via npm..."; \
+		$(VM_SSH) 'sudo -H -u nemoclaw bash -c "set -euo pipefail && \
+			export HOME=/home/nemoclaw && \
+			export NVM_DIR=/home/nemoclaw/.nvm && \
+			. /home/nemoclaw/.nvm/nvm.sh && \
+			cd /home/nemoclaw/code/nemoclaw && \
+			npm install && \
+			npm link && \
+			echo \"NemoClaw installed: \$$(which nemoclaw)\""'; \
+	else \
+		echo "WARN: external/NemoClaw not found. Place NemoClaw source there and re-run."; \
 	fi
-	@echo "Running ZeroClaw setup in VM (as zeroclaw user)..."
-	$(VM_SSH) "sudo -H -u zeroclaw env HOST_IP=$(HOST_IP) N8N_PORT=$(N8N_PORT) ZEROCLAW_PORT=$(ZEROCLAW_PORT) ZEROCLAW_API_KEY=$(ZEROCLAW_API_KEY) VAULT_ROOT_TOKEN=$(VAULT_ROOT_TOKEN) VAULT_PORT=$(VAULT_PORT) N8N_API_KEY=$(N8N_API_KEY) TELEGRAM_BOT_TOKEN=$(TELEGRAM_BOT_TOKEN) PATH=/home/zeroclaw/.cargo/bin:$$PATH HOME=/home/zeroclaw bash /tmp/zeroclaw-setup.sh"
-	@echo "ZeroClaw setup complete."
+	@echo "NemoClaw provisioning complete."
+
+.PHONY: vm-setup-nemoclaw
+vm-setup-nemoclaw: ## Configure and start NemoClaw in the VM
+	@echo "=== Setting up NemoClaw in VM ==="
+	@echo "Copying NemoClaw setup script to VM..."
+	$(VM_SCP) scripts/nemoclaw-setup.sh $(VM_USER)@localhost:/tmp/nemoclaw-setup.sh
+	@echo "Running NemoClaw setup in VM (as nemoclaw user)..."
+	$(VM_SSH) "sudo -H -u nemoclaw env \
+		HOME=/home/nemoclaw \
+		HOST_IP=$(HOST_IP) \
+		N8N_PORT=$(N8N_PORT) \
+		NEMOCLAW_PORT=$(NEMOCLAW_PORT) \
+		NEMOCLAW_API_KEY=$(NEMOCLAW_API_KEY) \
+		NVIDIA_API_KEY=$(NVIDIA_API_KEY) \
+		VAULT_ROOT_TOKEN=$(VAULT_ROOT_TOKEN) \
+		VAULT_PORT=$(VAULT_PORT) \
+		N8N_API_KEY=$(N8N_API_KEY) \
+		TELEGRAM_BOT_TOKEN=$(TELEGRAM_BOT_TOKEN) \
+		NEMOCLAW_SANDBOX_NAME=$(NEMOCLAW_SANDBOX_NAME) \
+		NVM_DIR=/home/nemoclaw/.nvm \
+		bash /tmp/nemoclaw-setup.sh"
+	@echo "NemoClaw setup complete."
 
 .PHONY: vm-destroy
 vm-destroy: ## Destroy VM and remove port forwarding
 	@echo "=== Destroying VM '$(VM_NAME)' ==="
-	@echo "Stopping ZeroClaw in VM (if reachable)..."
-	@$(VM_SSH) "zeroclaw gateway stop" 2>/dev/null || true
+	@echo "Stopping NemoClaw in VM (if reachable)..."
+	@$(VM_SSH) "sudo -H -u nemoclaw bash -c '. /home/nemoclaw/.nvm/nvm.sh 2>/dev/null; nemoclaw stop'" 2>/dev/null || true
 	@echo "Removing port forwarding rules..."
 	@prlsrvctl net set Shared --nat-tcp-del n8n-ssh 2>/dev/null || true
+	@prlsrvctl net set Shared --nat-tcp-del n8n-nemoclaw 2>/dev/null || true
+	@# Clean up legacy rules from previous architecture
 	@prlsrvctl net set Shared --nat-tcp-del n8n-zeroclaw 2>/dev/null || true
 	@prlsrvctl net set Shared --nat-tcp-del n8n-openclaw 2>/dev/null || true
-	@# Clean up legacy rules from previous architecture
 	@prlsrvctl net set Shared --nat-tcp-del n8n-web 2>/dev/null || true
 	@prlsrvctl net set Shared --nat-tcp-del n8n-vault 2>/dev/null || true
 	@echo "Stopping VM..."
@@ -501,14 +550,14 @@ vault-list: ## List all n8n secrets in Vault
 		"http://localhost:$(VAULT_PORT)/v1/secret/metadata/n8n?list=true" | jq '.data.keys'
 
 .PHONY: vault-seed
-vault-seed: ## Write ZeroClaw API key and other agent secrets to Vault
+vault-seed: ## Write NemoClaw API key and other agent secrets to Vault
 	@echo "Seeding Vault with agent secrets..."
-	@jq -n --arg k "$(ZEROCLAW_API_KEY)" '{"data": {"api_key": $$k}}' | \
+	@jq -n --arg k "$(NEMOCLAW_API_KEY)" '{"data": {"api_key": $$k}}' | \
 		curl -s -X POST \
 		-H "X-Vault-Token: $(VAULT_ROOT_TOKEN)" \
 		-H "Content-Type: application/json" \
 		-d @- \
-		"http://localhost:$(VAULT_PORT)/v1/secret/data/n8n/zeroclaw" | jq '.data.version // "seeded"'
+		"http://localhost:$(VAULT_PORT)/v1/secret/data/n8n/nemoclaw" | jq '.data.version // "seeded"'
 	@jq -n --arg k "$(N8N_API_KEY)" '{"data": {"api_key": $$k}}' | \
 		curl -s -X POST \
 		-H "X-Vault-Token: $(VAULT_ROOT_TOKEN)" \
@@ -607,31 +656,31 @@ alerts-push: ## Push versioned alert rules to Grafana Cloud
 ###############################################################################
 
 .PHONY: agent
-agent: ## Send a message to ZeroClaw: make agent MSG="What workflows are running?"
+agent: ## Send a message to NemoClaw: make agent MSG="What workflows are running?"
 	@[ -n "$(MSG)" ] || (echo "ERROR: MSG required. Usage: make agent MSG=\"...\"" && exit 1)
-	$(VM_SSH) "zeroclaw agent -m '$(MSG)'"
+	$(VM_SSH) "nemoclaw agent -m '$(MSG)'"
 
 .PHONY: agent-status
-agent-status: ## Check ZeroClaw status in VM
-	$(VM_SSH) "zeroclaw status" 2>/dev/null || echo "ZeroClaw unreachable in VM"
+agent-status: ## Check NemoClaw status in VM
+	$(VM_SSH) "nemoclaw status" 2>/dev/null || echo "NemoClaw unreachable in VM"
 
 .PHONY: sync-logs
-sync-logs: ## Start ZeroClaw log sync from VM in background (feeds Grafana Alloy)
-	@mkdir -p data/zeroclaw-logs
-	@pkill -f "sync-zeroclaw-logs.sh" 2>/dev/null || true
+sync-logs: ## Start NemoClaw log sync from VM in background (feeds Grafana Alloy)
+	@mkdir -p data/nemoclaw-logs
+	@pkill -f "sync-nemoclaw-logs.sh" 2>/dev/null || true
 	@sleep 1
-	@echo "Starting ZeroClaw log sync in background..."
-	@nohup bash scripts/sync-zeroclaw-logs.sh > /tmp/sync-zeroclaw-logs.log 2>&1 &
-	@echo "  Log sync started (PID: $$!). Logs: /tmp/sync-zeroclaw-logs.log"
+	@echo "Starting NemoClaw log sync in background..."
+	@nohup bash scripts/sync-nemoclaw-logs.sh > /tmp/sync-nemoclaw-logs.log 2>&1 &
+	@echo "  Log sync started (PID: $$!). Logs: /tmp/sync-nemoclaw-logs.log"
 
 .PHONY: sync-logs-stop
-sync-logs-stop: ## Stop the background ZeroClaw log sync
-	@pkill -f "sync-zeroclaw-logs.sh" 2>/dev/null && echo "Log sync stopped." || echo "Log sync not running."
+sync-logs-stop: ## Stop the background NemoClaw log sync
+	@pkill -f "sync-nemoclaw-logs.sh" 2>/dev/null && echo "Log sync stopped." || echo "Log sync not running."
 
 # =============================================================================
 # Cloudflare Tunnel (native macOS process, not Docker)
 # Runs on the host so localhost:42617 reaches the Parallels NAT-forwarded
-# ZeroClaw gateway, and localhost:5678 reaches n8n's published port.
+# NemoClaw gateway, and localhost:5678 reaches n8n's published port.
 # =============================================================================
 
 .PHONY: cloudflared-start
@@ -653,7 +702,7 @@ cloudflared-stop: ## Stop the background cloudflared process
 # Internal Targets (called by other targets)
 ###############################################################################
 
-# (docker-up, vm-provision-zeroclaw, vm-setup-zeroclaw are defined above)
+# (docker-up, vm-provision-nemoclaw, vm-setup-nemoclaw are defined above)
 
 ###############################################################################
 # Website Factory
@@ -694,6 +743,65 @@ wf-run: ## Run Website Factory job from CLI (JOB=jobs/cafe-peter.json [--dry-run
 wf-test: ## Open Website Factory form in browser
 	@open "http://localhost:$(N8N_PORT)/form/website-factory" 2>/dev/null || \
 		echo "Form URL: http://localhost:$(N8N_PORT)/form/website-factory"
+
+###############################################################################
+# Tool Agent
+###############################################################################
+
+.PHONY: tool-agent-data tool-agent-train tool-agent-eval tool-agent-export
+.PHONY: tool-agent-serve tool-agent-up tool-agent-down tool-agent-status
+
+tool-agent-data: ## Generate tool agent training data from knowledge_db
+	$(MAKE) -C projects/tool_agent data
+
+tool-agent-train: ## Fine-tune FunctionGemma on n8n integration data
+	$(MAKE) -C projects/tool_agent train
+
+tool-agent-eval: ## Evaluate fine-tuned model accuracy
+	$(MAKE) -C projects/tool_agent eval
+
+tool-agent-export: ## Export fine-tuned model to GGUF for Ollama
+	$(MAKE) -C projects/tool_agent export
+
+tool-agent-serve: ## Start tool agent server (foreground, port 8888)
+	$(MAKE) -C projects/tool_agent serve
+
+tool-agent-up: ## Start tool agent via Docker
+	$(MAKE) -C projects/tool_agent up
+
+tool-agent-down: ## Stop tool agent Docker container
+	$(MAKE) -C projects/tool_agent down
+
+tool-agent-status: ## Check tool agent health and registered tools
+	$(MAKE) -C projects/tool_agent status
+
+###############################################################################
+# Nord Meshnet Remote Desktop
+###############################################################################
+
+.PHONY: meshnet-setup meshnet-build meshnet-check meshnet-control-plane
+.PHONY: meshnet-desktop meshnet-mobile meshnet-health
+
+meshnet-setup: ## Install nord-meshnet-remote-desktop dependencies
+	$(MAKE) -C projects/nord-meshnet-remote-desktop setup
+
+meshnet-build: ## Build nord-meshnet-remote-desktop packages
+	$(MAKE) -C projects/nord-meshnet-remote-desktop build
+
+meshnet-check: ## Typecheck nord-meshnet-remote-desktop
+	$(MAKE) -C projects/nord-meshnet-remote-desktop typecheck
+
+meshnet-control-plane: ## Start the nord-meshnet control plane
+	$(MAKE) -C projects/nord-meshnet-remote-desktop control-plane
+
+meshnet-desktop: ## Start the Electron desktop app
+	$(MAKE) -C projects/nord-meshnet-remote-desktop desktop
+
+meshnet-mobile: ## Start the React Native mobile shell
+	$(MAKE) -C projects/nord-meshnet-remote-desktop mobile
+
+meshnet-health: ## Check nord-meshnet control-plane health
+	$(MAKE) -C projects/nord-meshnet-remote-desktop health
 
 ###############################################################################
 # Help

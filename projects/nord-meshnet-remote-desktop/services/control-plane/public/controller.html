@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nord Meshnet Remote Desktop</title>
+    <link rel="stylesheet" href="/controller.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Remote Session</h1>
+          <p id="session-meta">Waiting for launch token...</p>
+        </div>
+        <div class="pill" id="session-status">Booting</div>
+      </header>
+
+      <section class="viewer-card">
+        <div class="viewer-stack">
+          <video id="remote-video" autoplay playsinline></video>
+          <div id="control-overlay" class="control-overlay"></div>
+        </div>
+      </section>
+
+      <section class="controls-grid">
+        <div class="card">
+          <h2>Clipboard</h2>
+          <textarea id="clipboard-text" rows="4" placeholder="Paste text to send to the host clipboard"></textarea>
+          <button id="send-clipboard">Send Clipboard</button>
+        </div>
+
+        <div class="card">
+          <h2>Type Text</h2>
+          <input id="type-text" type="text" placeholder="Send immediate text input" />
+          <button id="send-text">Type On Host</button>
+        </div>
+
+        <div class="card">
+          <h2>File Transfer</h2>
+          <input id="file-input" type="file" />
+          <p class="muted">Small files are relayed through the control plane for now.</p>
+        </div>
+
+        <div class="card">
+          <h2>Session</h2>
+          <button id="end-session" class="danger">End Session</button>
+          <p class="muted" id="connection-meta">No peer connection yet.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="/controller.js"></script>
+  </body>
+</html>

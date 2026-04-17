@@ -7,8 +7,8 @@
 #   2. Analyze existing website (if existing_website in job config)
 #   3. Download + classify images with Claude Vision
 #   4. Generate content via Claude API (enriched with real data)
-#   5. Build design specification (with image assignments)
-#   6. Generate site code via Claude API
+#   5. Design system (Claude API) + design-spec.md (image notes + tokens); optional job.design / design_spec overrides
+#   6. Generate site code via Claude API (JSON file map)
 #   7. Validate
 #   8. Push to GitHub + enable Pages
 #
@@ -16,7 +16,7 @@
 #   ./scripts/run-job.sh jobs/cafe-peter.json
 #   ./scripts/run-job.sh jobs/cafe-peter.json --dry-run   # skip GitHub push
 #
-# Required env: ANTHROPIC_API_KEY (or ZEROCLAW_API_KEY), GITHUB_TOKEN, GITHUB_OWNER
+# Required env: ANTHROPIC_API_KEY (or NEMOCLAW_API_KEY), GITHUB_TOKEN, GITHUB_OWNER
 # ============================================================
 
 set -euo pipefail
@@ -37,7 +37,7 @@ if [[ -f "${REPO_ROOT}/.env" ]]; then
   set -a; source "${REPO_ROOT}/.env"; set +a
 fi
 
-ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-${ZEROCLAW_API_KEY:-}}"
+ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-${NEMOCLAW_API_KEY:-}}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 GITHUB_OWNER="${GITHUB_OWNER:-tech-sumit}"
 
@@ -297,7 +297,7 @@ ${WEBSITE_CONTEXT}
 
 ${IMAGE_CONTEXT}
 
-Return ONLY valid JSON with these keys: business_name, headline, headline_alternates (array of 2), phone, email, address, google_maps_url, primary_color, hero_image (path to best hero image from AVAILABLE IMAGES or empty string), rating (number from Google Maps data or null), review_count (number or null), reservation_links (array of {url, source} from Google Maps or []), about (title, body), services (3-6 items with title, description, icon emoji), gallery (array of items with image path from AVAILABLE IMAGES, alt text, category), faq (5-8 items), testimonials (3-5 items — prefer real Google reviews if available), hours (monday-sunday), cta (primary_text, primary_url, secondary_text, secondary_url), seo (title max 60 chars, description max 160 chars, keywords), nav_items (array of 4-6 strings), features (exactly 3 with title, subtitle, icon emoji), amenities (3-5 with label, icon emoji).
+Return ONLY valid JSON with these keys: business_name, headline, headline_alternates (array of 2), phone, email, address, google_maps_url, primary_color, hero_image (path to best hero image from AVAILABLE IMAGES or empty string), rating (number from Google Maps data or null), review_count (number or null), reservation_links (array of {url, source} from Google Maps or []), about (title, body), services (3-6 items with title, description, icon emoji), gallery (array of items with image path from AVAILABLE IMAGES, alt text, category), faq (5-8 items), testimonials (3-5 items — prefer real Google reviews if available), hours (monday-sunday), cta (primary_text, primary_url, secondary_text, secondary_url), seo (title max 60 chars, description max 160 chars, keywords), nav_items (array of 4-6 strings), features (exactly 3 with title, subtitle, icon emoji), amenities (3-5 with label, icon emoji). Do NOT include a top-level \"design\" key — typography and layout tokens are generated in the next pipeline step.
 
 When image data is available, populate gallery[].image with actual image paths like 'images/filename.jpg' and set hero_image to the best candidate. Use real Google Maps reviews as testimonials when available.
 
@@ -332,27 +332,24 @@ echo "$CLEANED" | jq . > "${WORK_DIR}/content.json" 2>/dev/null || {
 }
 ok "Content generated → ${WORK_DIR}/content.json"
 
-# ── Step 5: Build design spec ────────────────────────────────
-log "Step 5/${TOTAL_STEPS}: Building design specification..."
+# ── Step 5: Design system + design spec (markdown) ───────────
+log "Step 5/${TOTAL_STEPS}: Design system & design specification..."
 
-DESIGN_SPEC=$(echo "$JOB" | jq -r '.design_spec // empty')
-if [[ -z "$DESIGN_SPEC" ]]; then
-  CONTENT_JSON=$(cat "${WORK_DIR}/content.json")
-  BIZ_HEADLINE=$(echo "$CONTENT_JSON" | jq -r '.headline // "Welcome"')
-  NAV_ITEMS=$(echo "$CONTENT_JSON" | jq -r '.nav_items // ["Home","About","Menu","Contact"] | join(", ")')
-  FEATURES_DESC=$(echo "$CONTENT_JSON" | jq -r '(.features // [])[:3] | to_entries | map("Card \(.key+1): \(.value.icon // "⭐") \(.value.title // "Feature")") | join("; ")')
-  HERO_IMAGE=$(echo "$CONTENT_JSON" | jq -r '.hero_image // ""')
+if echo "$JOB" | jq -e '.design != null and (.design | type == "object")' >/dev/null 2>&1; then
+  jq --argjson d "$(echo "$JOB" | jq '.design')" '. * {design: $d}' "${WORK_DIR}/content.json" > "${WORK_DIR}/content.tmp" && mv "${WORK_DIR}/content.tmp" "${WORK_DIR}/content.json"
+  ok "Merged design object from job config into content.json"
+fi
 
-  IMAGE_DESIGN_NOTES=""
-  if [[ "$HAS_IMAGE_MANIFEST" == true && -f "${WORK_DIR}/image-manifest.json" ]]; then
-    IMAGE_DESIGN_NOTES=$(WORK_DIR="$WORK_DIR" python3 << 'PYEOF'
+rm -f "${WORK_DIR}/image-notes.txt"
+if [[ "$HAS_IMAGE_MANIFEST" == true && -f "${WORK_DIR}/image-manifest.json" ]]; then
+  WORK_DIR="$WORK_DIR" python3 << 'PYEOF' > "${WORK_DIR}/image-notes.txt"
 import json, os
 
 with open(os.path.join(os.environ.get("WORK_DIR", "/tmp"), "image-manifest.json")) as f:
     manifest = json.load(f)
 
 good = [m for m in manifest if m.get("quality", 0) >= 5]
-lines = ["\n## Image Assignments (real photos — use these instead of placeholders)"]
+lines = ["## Image assignments (real photos — use these instead of placeholders)"]
 
 hero = [m for m in good if "hero" in m.get("placement", [])]
 if hero:
@@ -372,34 +369,52 @@ if food:
     imgs = ", ".join(f"images/{m['filename']}" for m in food[:6])
     lines.append(f"- MENU/FOOD IMAGES: {imgs}")
 
-lines.append("\nUse actual <img> tags with src paths referencing these images. NO gradient-only placeholders.")
+lines.append("")
+lines.append("Use actual <img> tags with src paths referencing these images. NO gradient-only placeholders when photos exist.")
 print("\n".join(lines))
 PYEOF
-)
-  fi
-
-  DESIGN_SPEC="# Design Specification for ${BUSINESS_NAME}
-
-## Visual Design Brief
-Design a professional, polished website landing page for \"${BUSINESS_NAME}\", a ${CATEGORY} in $(echo "$JOB" | jq -r '.address // "Pune, India"').
-
-LAYOUT (top to bottom):
-1. NAVIGATION BAR: Logo/name left, menu items: ${NAV_ITEMS}, CTA button right
-2. HERO SECTION (60% viewport): $(if [[ -n "$HERO_IMAGE" ]]; then echo "Background image (${HERO_IMAGE})"; else echo "Background with gradient overlay"; fi), heading \"${BUSINESS_NAME}\", tagline \"${BIZ_HEADLINE}\", two CTA buttons
-3. FEATURES (3 cards): ${FEATURES_DESC}
-4. Additional sections as appropriate for a ${CATEGORY}
-
-## Style
-- Preset: ${STYLE_PRESET}
-- Primary Color: ${PRIMARY_COLOR}
-- Category: ${CATEGORY}
-- Quality bar: premium, modern, Wix/Squarespace level
-${IMAGE_DESIGN_NOTES}
-"
 fi
 
-echo "$DESIGN_SPEC" > "${WORK_DIR}/design-spec.md"
-ok "Design spec → ${WORK_DIR}/design-spec.md"
+DESIGN_SPEC_OVERRIDE=$(echo "$JOB" | jq -r '.design_spec // empty')
+if [[ -n "$DESIGN_SPEC_OVERRIDE" ]]; then
+  echo "$DESIGN_SPEC_OVERRIDE" > "${WORK_DIR}/design-spec.md"
+  ok "Using design_spec from job (manual override) → ${WORK_DIR}/design-spec.md"
+else
+  if ! jq -e '.design.heading_font' "${WORK_DIR}/content.json" >/dev/null 2>&1; then
+    log "Calling Claude API for design system..."
+    PROMPTS_JSON=$(python3 "${SCRIPT_DIR}/build-design-system-prompt.py" "$WORK_DIR" "$JOB_FILE")
+    echo "$PROMPTS_JSON" | jq -r '.system' > "${WORK_DIR}/ds-system.txt"
+    echo "$PROMPTS_JSON" | jq -r '.user' > "${WORK_DIR}/ds-user.txt"
+    jq -n \
+      --rawfile system "${WORK_DIR}/ds-system.txt" \
+      --rawfile user "${WORK_DIR}/ds-user.txt" \
+      '{
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        system: ($system | rtrimstr("\n")),
+        messages: [{ role: "user", content: ($user | rtrimstr("\n")) }]
+      }' > "${WORK_DIR}/design-request.json"
+    if ! curl -s -S -f -X POST "https://api.anthropic.com/v1/messages" \
+      -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+      -H "anthropic-version: 2023-06-01" \
+      -H "Content-Type: application/json" \
+      -d @"${WORK_DIR}/design-request.json" -o "${WORK_DIR}/design-api-response.json"; then
+      warn "Design system API request failed — using fallback tokens"
+      echo '{"content":[{"text":""}]}' > "${WORK_DIR}/design-api-response.json"
+    fi
+    if ! python3 "${SCRIPT_DIR}/apply-design-system.py" "$WORK_DIR" "$PRIMARY_COLOR"; then
+      error "apply-design-system.py failed"
+      exit 1
+    fi
+    ok "Design system merged → ${WORK_DIR}/design-system.json"
+  else
+    log "Design system already in content.json — skipping Claude design call"
+    jq '.design' "${WORK_DIR}/content.json" > "${WORK_DIR}/design-system.json"
+  fi
+
+  python3 "${SCRIPT_DIR}/render-design-spec.py" "$WORK_DIR" > "${WORK_DIR}/design-spec.md"
+  ok "Design spec → ${WORK_DIR}/design-spec.md"
+fi
 
 # ── Step 6: Clone template + generate site via Claude API ────
 log "Step 6/${TOTAL_STEPS}: Generating site code via Claude API..."
@@ -425,20 +440,25 @@ if [[ "$IMG_COUNT" -gt 0 ]]; then
   ok "Copied ${IMG_COUNT} images to site/public/images/"
 fi
 
-CONTENT_FOR_PROMPT=$(cat "${WORK_DIR}/content.json")
+# Include deploy in the prompt so the model sees the same site.json shape as the built site (base paths for images).
+CONTENT_FOR_PROMPT=$(jq --arg site "$PAGES_SITE" --arg base "$PAGES_BASE" \
+  '. + { deploy: { site: $site, base: $base } }' "${WORK_DIR}/content.json")
 DESIGN_FOR_PROMPT=$(cat "${WORK_DIR}/design-spec.md")
 EXTRA_COMPONENTS=$(echo "$JOB" | jq -r '.extra_components // ""')
+SITE_GEN_RULES=$(cat "${PROJECT_DIR}/prompts/site-generation.md")
 
-SITE_PROMPT="Generate an Astro website based on the following design specification and content.
+SITE_PROMPT="You are generating a distinctive Astro business website as a single JSON object: keys = file paths relative to project root, values = complete file contents.
 
-## Design Specification
+${SITE_GEN_RULES}
+
+## Design specification (markdown)
 ${DESIGN_FOR_PROMPT}
 
-## Content Data (site.json)
+## Content data (site.json — includes design tokens under \"design\")
 ${CONTENT_FOR_PROMPT}
 
-## Files to Generate
-Create these files as a JSON object (keys = file paths relative to project root, values = complete file contents):
+## Files to generate
+Create these files (JSON object keys = paths, values = full source):
 - src/pages/index.astro
 - src/components/Navbar.astro
 - src/components/Hero.astro
@@ -451,22 +471,13 @@ Create these files as a JSON object (keys = file paths relative to project root,
 - src/components/Footer.astro
 ${EXTRA_COMPONENTS}
 
-## Rules
-- Use Tailwind CSS for all styling (already configured)
-- CRITICAL IMPORT PATH: content/site.json lives at the PROJECT ROOT (not under src/).
-  All files under src/ (components, pages, layouts) MUST use: import siteData from '../../content/site.json'
-  The path is ALWAYS '../../content/site.json' — NEVER '../content/site.json'.
-- Use pre-built classes: .btn-primary, .btn-secondary, .section-padding, .container-wide
-- Use animations: .animate-fade-in, .animate-slide-up
-- Mobile-first responsive, semantic HTML5, accessible (aria-labels, alt text)
-- Read ALL content from site.json — zero hardcoded business text
-- Lazy load below-fold images. No frameworks beyond what's in the template.
-- DO NOT modify: .github/, package.json, astro.config.mjs, tailwind.config.mjs, src/layouts/Layout.astro
-- Match quality of premium Wix/Squarespace templates
-- IMAGES: When site.json contains image paths (hero_image, gallery[].image), use actual <img> tags with src attributes.
-  Images are served from public/images/ so reference them as '/\${base}/images/filename.jpg' using the deploy.base from site.json.
-  For hero images, use as CSS background-image or a full-bleed <img> with overlay.
-  NEVER use placeholder gradient-only blocks when real images are available.
+## Import path (critical)
+content/site.json is at the project root. Every file under src/ MUST use:
+  import siteData from '../../content/site.json'
+Never use ../content/site.json from src/.
+
+## Images
+When site.json has hero_image or gallery[].image, use real <img> or background-image. Prefix image paths with siteData.deploy.base (e.g. join base + /images/file.jpg). Prefer width, height, or aspect-ratio on images to reduce layout shift. Never use gradient-only heroes when real images exist.
 
 Return ONLY a JSON object. No markdown fences, no explanation."
 
@@ -479,7 +490,7 @@ SITE_RESPONSE=$(curl -s -X POST "https://api.anthropic.com/v1/messages" \
     '{
       model: "claude-sonnet-4-20250514",
       max_tokens: 16000,
-      system: "You are a senior frontend developer. Generate Astro components. Return ONLY a JSON object where keys are file paths and values are complete file contents. No explanation, no markdown.",
+      system: "You are a senior frontend developer. Build distinctive, accessible Astro layouts — implement site.json.design (layout_signature, hero_treatment, nav_style, section_order, motion_level). Return ONLY a JSON object mapping file paths to complete file contents. No markdown fences, no explanation.",
       messages: [{ role: "user", content: $prompt }]
     }')")
 

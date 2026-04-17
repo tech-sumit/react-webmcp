@@ -10,7 +10,7 @@ Usage:
     python3 scripts/generate-workflow.py --list-nodes          # Show available node types
     python3 scripts/generate-workflow.py --output workflow.json "My workflow idea"
 
-Requires: ZEROCLAW_API_KEY (Anthropic) in .env
+Requires: NEMOCLAW_API_KEY (Anthropic) in .env
 Optional: N8N_API_KEY + N8N_URL in .env for --deploy
 """
 
@@ -385,9 +385,9 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    api_key = os.environ.get("ZEROCLAW_API_KEY", "")
+    api_key = os.environ.get("NEMOCLAW_API_KEY", "")
     if not api_key:
-        print("ERROR: ZEROCLAW_API_KEY not set in .env", file=sys.stderr)
+        print("ERROR: NEMOCLAW_API_KEY not set in .env", file=sys.stderr)
         sys.exit(1)
 
     # Load knowledge DB

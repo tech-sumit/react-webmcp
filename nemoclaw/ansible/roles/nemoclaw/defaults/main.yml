@@ -1,0 +1,29 @@
+---
+# NemoClaw default variables
+
+# CI testing mode - skips tasks that require systemd, Docker-in-Docker, or kernel access
+ci_test: false
+
+# Tailscale settings
+tailscale_enabled: false
+tailscale_authkey: ""
+
+# NemoClaw port (OpenShell forward / dashboard)
+nemoclaw_port: 18789
+
+# NemoClaw config directory
+nemoclaw_config_dir: "{{ nemoclaw_home }}/.nemoclaw"
+
+# User settings (will be created as system user)
+nemoclaw_user: nemoclaw
+nemoclaw_home: /home/nemoclaw
+
+# NemoClaw source (installed from local external/NemoClaw via Makefile)
+nemoclaw_code_dir: "{{ nemoclaw_home }}/code"
+nemoclaw_source_dir: "{{ nemoclaw_code_dir }}/nemoclaw"
+
+# Node.js version (installed via nvm)
+node_major_version: 22
+
+# SSH keys for nemoclaw user
+nemoclaw_ssh_keys: []

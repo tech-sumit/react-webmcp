@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nord Meshnet Remote Desktop</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div>
+          <h1>Nord Meshnet Remote Desktop</h1>
+          <p id="runtime-summary">Preparing runtime...</p>
+        </div>
+        <div class="status-badge" id="socket-status">Offline</div>
+      </header>
+
+      <section class="grid two-col">
+        <article class="panel">
+          <h2>Control Plane</h2>
+          <label>
+            Base URL
+            <input id="control-plane-url" type="url" placeholder="http://100.x.y.z:8789" />
+          </label>
+          <label>
+            Device name
+            <input id="device-name" type="text" placeholder="My MacBook Pro" />
+          </label>
+          <label>
+            Approval mode
+            <select id="approval-mode">
+              <option value="prompt">Prompt Every Time</option>
+              <option value="trusted-only">Trusted Devices Can Auto-Approve</option>
+              <option value="always">Always Allow Unattended Sessions</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button id="register-device">Register Device</button>
+            <button id="refresh-devices" class="secondary">Refresh Devices</button>
+          </div>
+          <p class="meta" id="permission-summary">Checking permissions...</p>
+        </article>
+
+        <article class="panel">
+          <h2>Pairing</h2>
+          <div class="actions">
+            <button id="create-pair-code">Create Pair Code</button>
+          </div>
+          <p class="pair-code" id="pair-code-output">No active pairing code.</p>
+          <label>
+            Claim Pair Code
+            <input id="claim-pair-code" type="text" maxlength="12" placeholder="AB12CD" />
+          </label>
+          <button id="claim-pair-code-button" class="secondary">Claim Code</button>
+        </article>
+      </section>
+
+      <section class="grid two-col">
+        <article class="panel">
+          <h2>Available Hosts</h2>
+          <label>
+            Target device
+            <select id="host-selector"></select>
+          </label>
+          <label>
+            Session mode
+            <select id="session-mode">
+              <option value="attended">Attended Support</option>
+              <option value="unattended">Unattended Access</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button id="request-session">Request Session</button>
+            <button id="launch-mobile-view" class="secondary">Copy Mobile Launch URL</button>
+          </div>
+          <p class="meta" id="controller-status">No session requested yet.</p>
+        </article>
+
+        <article class="panel">
+          <h2>Incoming Requests</h2>
+          <div id="incoming-requests" class="request-list">
+            <p class="meta">No pending requests.</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel viewer-panel">
+        <div class="viewer-header">
+          <div>
+            <h2>Live Session</h2>
+            <p class="meta" id="session-status">No active session.</p>
+          </div>
+          <div class="actions">
+            <button id="send-host-clipboard" class="secondary">Read Host Clipboard</button>
+            <button id="end-session" class="danger">End Session</button>
+          </div>
+        </div>
+
+        <div class="viewer-stack">
+          <video id="session-video" autoplay playsinline muted></video>
+          <div id="session-overlay" class="session-overlay"></div>
+        </div>
+
+        <div class="grid three-col">
+          <div class="subpanel">
+            <h3>Clipboard</h3>
+            <textarea id="clipboard-text" rows="4" placeholder="Send text to host clipboard"></textarea>
+            <button id="send-clipboard">Send Clipboard</button>
+          </div>
+          <div class="subpanel">
+            <h3>Type Text</h3>
+            <input id="type-text" type="text" placeholder="Type text on the host" />
+            <button id="send-text">Type Now</button>
+          </div>
+          <div class="subpanel">
+            <h3>File Transfer</h3>
+            <input id="file-transfer" type="file" />
+            <p class="meta" id="file-transfer-status">No file transfer yet.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Activity</h2>
+        <pre id="activity-log" class="activity-log"></pre>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

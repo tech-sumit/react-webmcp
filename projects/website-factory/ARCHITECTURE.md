@@ -69,7 +69,7 @@ This design brief is fed to the Claude API which generates all the actual page c
 | HashiCorp Vault       | Ready  | KV v2 secrets engine, n8n external secrets integration        |
 | PostgreSQL            | Ready  | Running in Docker, available for metadata storage             |
 | Grafana Cloud         | Ready  | Metrics + Logs + Dashboards for observability                 |
-| ZeroClaw AI Agent     | Ready  | LLM-powered agent with n8n/vault/terraform skills             |
+| NemoClaw AI Agent     | Ready  | LLM-powered agent with n8n/vault/terraform skills             |
 | Terraform             | Ready  | Modules: Cloudflare, GitHub, S3, Parallels VM                 |
 | Makefile CLI          | Ready  | 30+ targets for lifecycle, workflows, secrets, terraform      |
 
@@ -248,7 +248,7 @@ Enrichment now uses two independent scrapers — no API keys required for data e
 
 ### Layer 4: AI Content Generation (n8n HTTP Request → Claude)
 
-**Uses:** Anthropic Claude API (via ZeroClaw API key already in Vault)
+**Uses:** Anthropic Claude API (via NemoClaw API key already in Vault)
 
 **n8n implementation:** HTTP Request node calling `https://api.anthropic.com/v1/messages`
 
@@ -942,7 +942,7 @@ All API keys stored in Vault under `secret/data/n8n/`:
 | ------------------------------------ | -------------------------- | ------------ |
 | `secret/data/n8n/github`            | `token`, `owner`           | Already set  |
 | `secret/data/n8n/cloudflare`        | `api_token`, `account_id`  | Already set  |
-| `secret/data/n8n/zeroclaw`          | `api_key` (Anthropic)      | Already set  |
+| `secret/data/n8n/nemoclaw`          | `api_key` (Anthropic)      | Already set  |
 | `secret/data/n8n/google-places`     | `api_key`                  | Optional     |
 | `secret/data/n8n/sendgrid`          | `api_key`                  | Optional     |
 
@@ -1005,7 +1005,7 @@ projects/website-factory/
 | Intake UI          | **n8n Form Trigger**      | Existing      | No external UI needed for MVP            |
 | Orchestration      | **n8n**                   | Existing      | Main pipeline workflow                   |
 | Data Enrichment    | **Google Places API**     | Optional      | Falls back to mock data from form input  |
-| AI Content         | **Anthropic Claude API**  | Existing key  | Via ZEROCLAW_API_KEY / ANTHROPIC_API_KEY  |
+| AI Content         | **Anthropic Claude API**  | Existing key  | Via NEMOCLAW_API_KEY / ANTHROPIC_API_KEY  |
 | AI Design Spec     | **Claude API**            | Existing key  | Text-based design brief (no image gen)   |
 | AI Site Builder    | **Claude API**            | Existing key  | JSON response → Astro component files    |
 | Static Framework   | **Astro + Tailwind CSS**  | New           | Base template at tech-sumit/website-factory-base |
