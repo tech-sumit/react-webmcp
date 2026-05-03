@@ -43,4 +43,4 @@ node_modules/
 !projects/
 projects/*
 !projects/nord-meshnet-remote-desktop/
-!projects/VRM-model/
+# projects/VRM-model/ is its own standalone git repo — don't track its contents here.
