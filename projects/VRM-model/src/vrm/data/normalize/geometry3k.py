@@ -14,8 +14,8 @@ def normalize(raw: dict) -> Record | None:
     question = raw.get("question") or raw.get("problem_text") or ""
     choices = raw.get("choices") or raw.get("options")
     if isinstance(choices, list):
-        question = question + "\nChoices:\n" + "\n".join(
-            f"({chr(ord('A') + i)}) {c}" for i, c in enumerate(choices)
+        question = (
+            question + "\nChoices:\n" + "\n".join(f"({chr(ord('A') + i)}) {c}" for i, c in enumerate(choices))
         )
     return Record(
         id=str(raw.get("id") or hash(question)),

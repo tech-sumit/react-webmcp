@@ -29,4 +29,4 @@ REGISTRY: dict[str, NormalizeSpec] = {
     "tabmwp": tabmwp_spec,
 }
 
-__all__ = ["NormalizeSpec", "REGISTRY"]
+__all__ = ["REGISTRY", "NormalizeSpec"]

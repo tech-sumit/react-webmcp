@@ -11,18 +11,14 @@ def normalize(raw: dict) -> Record | None:
     answer = (raw.get("answer") or "").strip()
     if not image or not answer:
         return None
-    answer_type = raw.get("answer_type") or (
-        "multiple_choice" if raw.get("options") else "numeric"
-    )
+    answer_type = raw.get("answer_type") or ("multiple_choice" if raw.get("options") else "numeric")
     question = raw.get("question") or ""
     if raw.get("options"):
         opts = raw["options"]
         if isinstance(opts, dict):
             question = question + "\n" + "\n".join(f"({k}) {v}" for k, v in opts.items())
         elif isinstance(opts, list):
-            question = question + "\n" + "\n".join(
-                f"({chr(ord('A') + i)}) {c}" for i, c in enumerate(opts)
-            )
+            question = question + "\n" + "\n".join(f"({chr(ord('A') + i)}) {c}" for i, c in enumerate(opts))
     return Record(
         id=str(raw.get("id") or hash(question)),
         images=[str(image)],

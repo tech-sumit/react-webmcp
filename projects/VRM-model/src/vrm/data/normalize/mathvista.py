@@ -12,15 +12,12 @@ def normalize(raw: dict) -> Record | None:
     if not image or not answer:
         return None
     answer_type_raw = (raw.get("question_type") or "").lower()
-    if "multi_choice" in answer_type_raw or raw.get("choices"):
-        answer_type = "multiple_choice"
-    else:
-        answer_type = "numeric"
+    answer_type = "multiple_choice" if "multi_choice" in answer_type_raw or raw.get("choices") else "numeric"
     question = raw.get("question") or ""
     if raw.get("choices"):
         choices = raw["choices"]
-        question = question + "\nChoices:\n" + "\n".join(
-            f"({chr(ord('A') + i)}) {c}" for i, c in enumerate(choices)
+        question = (
+            question + "\nChoices:\n" + "\n".join(f"({chr(ord('A') + i)}) {c}" for i, c in enumerate(choices))
         )
     return Record(
         id=str(raw.get("pid") or raw.get("id") or hash(question)),

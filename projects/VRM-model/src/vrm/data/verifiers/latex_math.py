@@ -18,10 +18,7 @@ from sympy.parsing.sympy_parser import (
     standard_transformations,
 )
 
-_TRANSFORMATIONS = standard_transformations + (
-    implicit_multiplication_application,
-    convert_xor,
-)
+_TRANSFORMATIONS = (*standard_transformations, implicit_multiplication_application, convert_xor)
 _LATEX_MARKERS = ("\\frac", "\\sqrt", "\\sum", "\\int", "\\pi", "\\theta", "^{", "_{")
 
 
@@ -37,7 +34,7 @@ def _to_sympy(s: str):
         if _looks_latex(s):
             return parse_latex(s)
         return parse_expr(s, transformations=_TRANSFORMATIONS)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -49,5 +46,5 @@ def math_equal(prediction: str, gold: dict[str, Any]) -> float:
     try:
         diff = simplify(p - g)
         return 1.0 if diff == 0 else 0.0
-    except Exception:  # noqa: BLE001
+    except Exception:
         return 0.0

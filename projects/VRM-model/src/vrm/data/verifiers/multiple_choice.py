@@ -7,9 +7,7 @@ from typing import Any
 
 # Specific patterns first (longer, more constrained), then a generic single-letter fallback.
 _PATTERNS = [
-    re.compile(
-        r"\b(?:THE\s+ANSWER\s+IS|FINAL\s+ANSWER)\s*[:\s]*\(?([A-J])\)?(?!\w)"
-    ),
+    re.compile(r"\b(?:THE\s+ANSWER\s+IS|FINAL\s+ANSWER)\s*[:\s]*\(?([A-J])\)?(?!\w)"),
     re.compile(r"\bANSWER\s*[:\s]+\(?([A-J])\)?(?!\w)"),
     re.compile(r"(?<!\w)\(([A-J])\)(?!\w)"),
 ]

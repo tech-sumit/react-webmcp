@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from vrm.data.verifiers.format import extract_answer, has_valid_format
 from vrm.data.verifiers.latex_math import math_equal

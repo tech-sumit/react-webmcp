@@ -18,7 +18,6 @@ This is the single entry the dataprep pod calls; pod-entrypoint.sh wires
 from __future__ import annotations
 
 import asyncio
-import os
 from pathlib import Path
 
 import click
@@ -33,9 +32,7 @@ from vrm.infra.hf_hub import dataset_repo_id, upload_dataset_shards
 from vrm.infra.webhook import post_status
 
 
-def _normalize_one_source(
-    source: str, cap: int, *, out_dir: Path
-) -> dict[str, int]:
+def _normalize_one_source(source: str, cap: int, *, out_dir: Path) -> dict[str, int]:
     from datasets import load_dataset
 
     spec = REGISTRY[source]
@@ -53,7 +50,7 @@ def _normalize_one_source(
 def _difficulty_provider_factory(model_id: str, k: int):
     """Returns a callable Record -> pass@K, lazy-loading vLLM only when called."""
 
-    cache: dict[str, "object"] = {}
+    cache: dict[str, object] = {}
 
     def _provider(rec: Record) -> float:
         if "llm" not in cache:
@@ -119,13 +116,14 @@ def build_one_recipe(
     final_dir = filt_dir
     if include_distillation and recipe.distillation.enabled:
         distill_result = asyncio.run(
-            distill_shards(
-                filt_dir, distill_dir, concurrency=recipe.distillation.concurrency
-            )
+            distill_shards(filt_dir, distill_dir, concurrency=recipe.distillation.concurrency)
         )
         final_dir = distill_dir
     else:
-        distill_result = {"records_in": int(filter_result["records_out"]), "records_out": int(filter_result["records_out"])}
+        distill_result = {
+            "records_in": int(filter_result["records_out"]),
+            "records_out": int(filter_result["records_out"]),
+        }
 
     if upload:
         repo_id = dataset_repo_id(recipe.name, data_version)
@@ -202,7 +200,7 @@ def main(
             )
             summary[recipe.name] = result
             click.echo(f"[build] {recipe.name}: {result}")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         post_status(
             "failure",
             task="dataprep",

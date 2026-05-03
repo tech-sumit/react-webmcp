@@ -9,8 +9,8 @@ generation step from the cheap accounting:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -65,9 +65,7 @@ def filter_shards(
                 shard_idx += 1
                 buf = []
     if buf:
-        pq.write_table(
-            pa.Table.from_pylist(buf), out_dir / f"shard-{shard_idx:05d}.parquet"
-        )
+        pq.write_table(pa.Table.from_pylist(buf), out_dir / f"shard-{shard_idx:05d}.parquet")
     return {
         "records_in": float(in_count),
         "records_out": float(out_count),

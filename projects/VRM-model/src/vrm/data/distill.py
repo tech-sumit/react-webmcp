@@ -15,8 +15,8 @@ import asyncio
 import base64
 import json
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import click
 import pyarrow as pa
@@ -146,7 +146,7 @@ async def distill_shards(in_dir: Path, out_dir: Path, *, concurrency: int = 16) 
             )
             if best is None:
                 return None
-            new_messages = list(rec.messages) + [Message(role="assistant", content=best)]
+            new_messages = [*list(rec.messages), Message(role="assistant", content=best)]
             return rec.model_copy(update={"messages": new_messages})
 
     for shard_path in sorted(in_dir.glob("shard-*.parquet")):
@@ -168,9 +168,7 @@ async def distill_shards(in_dir: Path, out_dir: Path, *, concurrency: int = 16) 
                 buf = []
 
     if buf:
-        pq.write_table(
-            pa.Table.from_pylist(buf), out_dir / f"shard-{shard_idx:05d}.parquet"
-        )
+        pq.write_table(pa.Table.from_pylist(buf), out_dir / f"shard-{shard_idx:05d}.parquet")
     return {"records_in": in_count, "records_out": out_count}
 
 

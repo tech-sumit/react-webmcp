@@ -26,9 +26,7 @@ class Record(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    images: list[str] = Field(
-        default_factory=list, description="Local paths or s3://-style URIs"
-    )
+    images: list[str] = Field(default_factory=list, description="Local paths or s3://-style URIs")
     messages: list[Message]
     answer: str
     answer_type: AnswerType
