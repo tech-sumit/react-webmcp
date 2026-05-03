@@ -42,3 +42,4 @@ node_modules/
 !projects/
 projects/*
 !projects/nord-meshnet-remote-desktop/
+!projects/VRM-model/
