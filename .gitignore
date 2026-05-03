@@ -7,8 +7,9 @@
 terraform.tfstate
 terraform.tfstate.backup
 
-# Data volumes (bind mounts)
-data/
+# Data volumes (bind mounts) — anchor to root so nested Python packages like
+# projects/VRM-model/src/vrm/data/ are NOT ignored.
+/data/
 
 # Backups
 backups/

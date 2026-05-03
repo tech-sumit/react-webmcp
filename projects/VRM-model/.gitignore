@@ -25,11 +25,12 @@ dist/
 *.swp
 
 # Datasets / models / weights -- never commit large blobs
-data/
-checkpoints/
-runs/
-wandb/
-outputs/
+# Anchor with leading slash so `src/vrm/data/` (code package) is NOT ignored.
+/data/
+/checkpoints/
+/runs/
+/wandb/
+/outputs/
 *.pt
 *.bin
 *.safetensors
