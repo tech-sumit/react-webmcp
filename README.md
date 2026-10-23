@@ -2,7 +2,7 @@
 
 React hooks and components for the [WebMCP](https://github.com/webmachinelearning/webmcp) standard — expose structured tools for AI agents on your website.
 
-WebMCP is a W3C-proposed web standard (Chrome 146+) that allows websites to register tools that AI agents can discover and invoke directly, replacing unreliable screen-scraping with robust, schema-driven interaction.
+WebMCP is a W3C-proposed web standard (Chrome 149+ origin trial) that allows websites to register tools that AI agents can discover and invoke directly, replacing unreliable screen-scraping with robust, schema-driven interaction.
 
 **react-webmcp** provides idiomatic React primitives for three API styles: **Imperative** (hooks), **Declarative** (HTML-attributed components), and **Adapter** (framework-agnostic wrappers for Material UI, Ant Design, and custom components).
 
@@ -11,10 +11,13 @@ WebMCP is a W3C-proposed web standard (Chrome 146+) that allows websites to regi
 ### Imperative API
 
 - **`useWebMCPTool`** — Register a single tool with automatic lifecycle management (mount/unmount)
-- **`useWebMCPContext`** — Register multiple tools at once via `provideContext()`
-- **`useToolEvent`** — Listen for `toolactivated` and `toolcancel` browser events
+- **`useWebMCPContext`** — Register (and swap) a set of tools at once
+- **`useToolEvent`** — Listen for `toolactivated` and `toolcancel` events
+- **`listWebMCPTools`** / **`executeWebMCPTool`** — Discover and run tools from in-page agents via `getTools()` / `executeTool()`
 
 ### Declarative API
+
+> The declarative API was removed from the spec text in October 2026 (it remains in the [explainer](https://github.com/webmachinelearning/webmcp/blob/main/declarative-api-explainer.md) and Chrome still supports it), so these components may change.
 
 - **`<WebMCPForm>`** — Declarative form component with `toolname` / `tooldescription` attributes
 - **`<WebMCPInput>`, `<WebMCPSelect>`, `<WebMCPTextarea>`** — Form controls with `toolparam*` attributes
@@ -29,14 +32,14 @@ WebMCP is a W3C-proposed web standard (Chrome 146+) that allows websites to regi
 ### General
 
 - **`<WebMCPProvider>`** — Context provider for availability detection
-- Full TypeScript support with `navigator.modelContext` type augmentation
+- Full TypeScript support with `document.modelContext` type augmentation (legacy `navigator.modelContext` still supported)
 - SSR-safe tool registration and schema collection
 - Works with the [Model Context Tool Inspector](https://chromewebstore.google.com/detail/model-context-tool-inspec/gbpdfapgefenggkahomfgkhfehlcenpd) extension
 
 ## Requirements
 
 - **React** 18+
-- **Chrome** 146.0.7672.0+ with the `WebMCP for testing` flag enabled at `chrome://flags/#enable-webmcp-testing`
+- **Chrome** 149+ with `chrome://flags/#enable-webmcp-testing` enabled, or a page enrolled in the [WebMCP origin trial](https://developer.chrome.com/blog/ai-webmcp-origin-trial). Chrome 146–151 builds that only expose `navigator.modelContext` keep working
 
 ## Installation
 
@@ -180,20 +183,22 @@ function RatingField({ value, onChange }) {
 
 #### `useWebMCPTool(config)`
 
-Registers a single tool with `navigator.modelContext.registerTool()` on mount and unregisters on unmount.
+Registers a single tool with `document.modelContext.registerTool(tool, { signal })` on mount and unregisters on unmount by aborting the signal (per spec; `unregisterTool()` is only used on legacy builds).
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `name` | `string` | Unique tool identifier |
+| `name` | `string` | Unique tool identifier: 1–128 chars of `[A-Za-z0-9_.-]` |
+| `title` | `string` | *(optional)* Human-readable label shown in browser UI |
 | `description` | `string` | Human-readable description for agents |
 | `inputSchema` | `JSONSchema` | JSON Schema for input parameters |
-| `outputSchema` | `JSONSchema` | *(optional, library extension)* JSON Schema for output — not in browser WebIDL |
-| `annotations` | `ToolAnnotations` | *(optional)* Hints; only `readOnlyHint` (`boolean`) is browser-native |
-| `execute` | `(input) => any` | Handler function called on invocation |
+| `outputSchema` | `JSONSchema` | *(optional, library extension)* JSON Schema for output — not in the spec |
+| `annotations` | `ToolAnnotations` | *(optional)* `readOnlyHint`, `untrustedContentHint`, `consequentialHint`, `debugging` |
+| `exposedTo` | `string[]` | *(optional)* Extra origins in the frame tree the tool is exposed to |
+| `execute` | `(input, { signal }) => any` | Handler called on invocation; `signal` aborts if the agent cancels |
 
 #### `useWebMCPContext(config)`
 
-Replaces all registered tools using `provideContext()`. Calls `clearContext()` on unmount.
+Registers a set of tools; when the set changes, the previous tools are unregistered and the new ones registered. All are unregistered on unmount. The spec removed `provideContext()` / `clearContext()`, so tools registered elsewhere on the page are no longer cleared.
 
 ```tsx
 useWebMCPContext({
@@ -206,7 +211,7 @@ useWebMCPContext({
 
 #### `useToolEvent(event, callback, toolNameFilter?)`
 
-Listens for WebMCP browser events.
+Listens for WebMCP events on `document.modelContext` (per spec) and `window` (legacy / declarative).
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -316,19 +321,27 @@ Type for field metadata. See `src/adapters/types.ts` for the full interface.
 
 #### `isWebMCPAvailable()`
 
-Returns `true` if `navigator.modelContext` is available.
+Returns `true` if `document.modelContext` (or the legacy `navigator.modelContext`) is available.
 
-#### `isWebMCPTestingAvailable()`
+#### `isWebMCPTestingAvailable()` *(deprecated)*
 
-Returns `true` if `navigator.modelContextTesting` is available (inspector API).
+Returns `true` if the legacy `navigator.modelContextTesting` is available. It was removed in Chrome 152.
 
 #### `getModelContext()`
 
-Returns the `navigator.modelContext` object or `null`.
+Returns `document.modelContext`, falling back to `navigator.modelContext`, or `null`.
+
+#### `listWebMCPTools()`
+
+Resolves with the tools exposed to this document (`document.modelContext.getTools()`), or `[]` when WebMCP is unavailable.
+
+#### `executeWebMCPTool(nameOrTool, input?, { signal }?)`
+
+Runs a tool via `document.modelContext.executeTool()` and resolves with its JSON-stringified result. Passes `input` as an object per spec and retries with a JSON string for Chrome 153, which still expects one.
 
 ## Tool Annotations
 
-Annotations provide metadata hints to AI agents. Per the browser's WebIDL (`AnnotationsDict`), only `readOnlyHint` (`boolean`) is currently implemented in Chrome. The other fields are library-level extensions that may be used by higher-level agent frameworks:
+Annotations provide metadata hints to AI agents. The spec's `ToolAnnotations` defines four booleans, all defaulting to `false`: `readOnlyHint`, `untrustedContentHint` (output contains untrusted data), `consequentialHint` (significant, real-world or irreversible action) and `debugging` (developer tooling only). Chrome 153 implements `readOnlyHint` and `untrustedContentHint` so far. Other fields are library-level extensions:
 
 ```tsx
 useWebMCPTool({
@@ -336,9 +349,9 @@ useWebMCPTool({
   description: "Permanently delete the user account",
   inputSchema: { type: "object", properties: { confirm: { type: "boolean" } } },
   annotations: {
-    readOnlyHint: false,          // browser-native (boolean per WebIDL)
-    destructiveHint: true,        // library extension (not in browser yet)
-    idempotentHint: false,        // library extension (not in browser yet)
+    readOnlyHint: false,          // spec
+    consequentialHint: true,      // spec: irreversible, real-world action
+    idempotentHint: false,        // library extension (not in the spec)
   },
   execute: ({ confirm }) => {
     if (!confirm) return "Deletion cancelled.";
@@ -378,22 +391,22 @@ npm run dev
 ```
 Your React App
     │
-    ├─ useWebMCPTool()   ──► navigator.modelContext.registerTool()
+    ├─ useWebMCPTool()   ──► document.modelContext.registerTool(tool, { signal })
     ├─ <WebMCPForm>      ──► <form toolname="..." tooldescription="...">
     ├─ <WebMCP.Tool>     ──► Collects fields (children + fields + useRegisterField)
     │                         → buildInputSchema() → registerTool()
     │
-    └─ Browser (Chrome 146+)
+    └─ Browser (Chrome 149+)
          │
-         ├─ navigator.modelContext        ◄── Your tools registered here
-         ├─ navigator.modelContextTesting ◄── Inspector reads from here
+         ├─ document.modelContext         ◄── Your tools registered here
+         ├─ getTools() / executeTool()    ◄── In-page agents and inspectors read from here
          │
          └─ AI Agent (Gemini, etc.)       ◄── Discovers and calls tools
 ```
 
 ## TypeScript
 
-The library extends the global `Navigator` interface with `modelContext` and `modelContextTesting` types. Import the types:
+The library extends the global `Document` interface with `modelContext` (and `Navigator` with the legacy `modelContext` / `modelContextTesting`). Import the types:
 
 ```typescript
 import type {
@@ -405,6 +418,7 @@ import type {
   WebMCPFieldProps,
   FieldDefinition,
   ModelContext,
+  RegisteredTool,
 } from "react-webmcp";
 ```
 

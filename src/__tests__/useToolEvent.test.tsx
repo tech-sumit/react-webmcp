@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import React from "react";
 import { render, cleanup, act } from "@testing-library/react";
 import { useToolEvent } from "../hooks/useToolEvent";
+import { installMockModelContext, removeMockModelContext } from "./helpers";
 
 describe("useToolEvent", () => {
   afterEach(() => {
@@ -136,5 +137,26 @@ describe("useToolEvent", () => {
     dispatchToolEvent("toolcancel", "tool-c");
     expect(callback).toHaveBeenCalledTimes(2);
     expect(callback).toHaveBeenLastCalledWith("tool-c");
+  });
+
+  it("listens for spec events fired at document.modelContext", () => {
+    const mc = installMockModelContext();
+    const callback = vi.fn();
+
+    function App() {
+      useToolEvent("toolactivated", callback);
+      return null;
+    }
+
+    const { unmount } = render(<App />);
+    act(() => {
+      mc.dispatchEvent(Object.assign(new Event("toolactivated"), { toolName: "book_table" }));
+    });
+    expect(callback).toHaveBeenCalledWith("book_table");
+
+    unmount();
+    mc.dispatchEvent(Object.assign(new Event("toolactivated"), { toolName: "book_table" }));
+    expect(callback).toHaveBeenCalledTimes(1);
+    removeMockModelContext();
   });
 });

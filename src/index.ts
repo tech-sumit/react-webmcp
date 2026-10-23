@@ -12,7 +12,12 @@ export type {
   WebMCPFormSubmitEvent,
   ToolActivatedEvent,
   ToolCancelEvent,
+  ToolExecuteOptions,
   ModelContext,
+  ModelContextRegisterToolOptions,
+  ModelContextGetToolsOptions,
+  ModelContextExecuteToolOptions,
+  RegisteredTool,
   ModelContextTesting,
 } from "./types";
 
@@ -39,6 +44,8 @@ export {
   getModelContext,
   isWebMCPAvailable,
   isWebMCPTestingAvailable,
+  listWebMCPTools,
+  executeWebMCPTool,
 } from "./utils/modelContext";
 
 // Adapter API (third-party component library support)

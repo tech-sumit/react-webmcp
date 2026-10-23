@@ -2,9 +2,12 @@ import React, { createContext, useContext, useMemo } from "react";
 import { isWebMCPAvailable, isWebMCPTestingAvailable } from "./utils/modelContext";
 
 interface WebMCPContextValue {
-  /** Whether navigator.modelContext is available in this browser. */
+  /** Whether document.modelContext (or the legacy navigator.modelContext) is available. */
   available: boolean;
-  /** Whether navigator.modelContextTesting is available (inspector API). */
+  /**
+   * Whether the legacy navigator.modelContextTesting API is available.
+   * @deprecated Removed in Chrome 152; always false on current browsers.
+   */
   testingAvailable: boolean;
 }
 

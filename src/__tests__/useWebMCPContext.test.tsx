@@ -4,9 +4,17 @@ import { render, cleanup } from "@testing-library/react";
 import { useWebMCPContext } from "../hooks/useWebMCPContext";
 import {
   installMockModelContext,
+  installLegacyModelContext,
   removeMockModelContext,
   createToolConfig,
 } from "./helpers";
+
+type RegisterMock = ReturnType<typeof installMockModelContext>["registerTool"];
+
+/** The tool definitions passed to registerTool(), in call order. */
+function toolsPassed(registerTool: RegisterMock) {
+  return registerTool.mock.calls.map((c) => c[0]);
+}
 
 describe("useWebMCPContext", () => {
   afterEach(() => {
@@ -14,7 +22,7 @@ describe("useWebMCPContext", () => {
     removeMockModelContext();
   });
 
-  it("calls provideContext on mount", () => {
+  it("registers each tool on mount", () => {
     const mc = installMockModelContext();
     const tools = [createToolConfig()];
 
@@ -24,14 +32,14 @@ describe("useWebMCPContext", () => {
     }
 
     render(<App />);
-    expect(mc.provideContext).toHaveBeenCalledTimes(1);
-    const call = mc.provideContext.mock.calls[0][0];
-    expect(call.tools).toHaveLength(1);
-    expect(call.tools[0].name).toBe("test-tool");
-    expect(typeof call.tools[0].execute).toBe("function");
+    expect(mc.registerTool).toHaveBeenCalledTimes(1);
+    const tool = mc.registerTool.mock.calls[0][0];
+    expect(tool.name).toBe("test-tool");
+    expect(typeof tool.execute).toBe("function");
+    expect(mc.registerTool.mock.calls[0][1]!.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it("calls clearContext on unmount", () => {
+  it("aborts every registration signal on unmount", () => {
     const mc = installMockModelContext();
     const tools = [createToolConfig()];
 
@@ -45,14 +53,38 @@ describe("useWebMCPContext", () => {
     }
 
     const { rerender } = render(<App show={true} />);
-    expect(mc.provideContext).toHaveBeenCalledTimes(1);
-    expect(mc.clearContext).not.toHaveBeenCalled();
+    expect(mc.registerTool).toHaveBeenCalledTimes(1);
+    const signal = mc.registerTool.mock.calls[0][1]!.signal!;
+    expect(signal.aborted).toBe(false);
 
     rerender(<App show={false} />);
-    expect(mc.clearContext).toHaveBeenCalledTimes(1);
+    expect(signal.aborted).toBe(true);
   });
 
-  it("re-calls provideContext when tools change", () => {
+  it("uses unregisterTool() on legacy implementations", () => {
+    const mc = installLegacyModelContext();
+
+    function ContextComponent() {
+      useWebMCPContext({
+        tools: [createToolConfig({ name: "a" }), createToolConfig({ name: "b" })],
+      });
+      return null;
+    }
+
+    function App({ show }: { show: boolean }) {
+      return show ? <ContextComponent /> : null;
+    }
+
+    const { rerender } = render(<App show={true} />);
+    expect(mc.registerTool).toHaveBeenCalledTimes(2);
+    expect(mc.provideContext).not.toHaveBeenCalled();
+
+    rerender(<App show={false} />);
+    expect(mc.unregisterTool).toHaveBeenCalledWith("a");
+    expect(mc.unregisterTool).toHaveBeenCalledWith("b");
+  });
+
+  it("re-registers when tools change", () => {
     const mc = installMockModelContext();
 
     function App({ toolName }: { toolName: string }) {
@@ -63,15 +95,15 @@ describe("useWebMCPContext", () => {
     }
 
     const { rerender } = render(<App toolName="tool-a" />);
-    expect(mc.provideContext).toHaveBeenCalledTimes(1);
+    expect(mc.registerTool).toHaveBeenCalledTimes(1);
 
     rerender(<App toolName="tool-b" />);
-    expect(mc.clearContext).toHaveBeenCalled();
-    expect(mc.provideContext).toHaveBeenCalledTimes(2);
-    expect(mc.provideContext.mock.calls[1][0].tools[0].name).toBe("tool-b");
+    expect(mc.registerTool.mock.calls[0][1]!.signal!.aborted).toBe(true);
+    expect(mc.registerTool).toHaveBeenCalledTimes(2);
+    expect(mc.registerTool.mock.calls[1][0].name).toBe("tool-b");
   });
 
-  it("does NOT re-call provideContext when only execute changes", () => {
+  it("does NOT re-register when only execute changes", () => {
     const mc = installMockModelContext();
     const execute1 = vi.fn();
     const execute2 = vi.fn();
@@ -84,10 +116,10 @@ describe("useWebMCPContext", () => {
     }
 
     const { rerender } = render(<App executeFn={execute1} />);
-    expect(mc.provideContext).toHaveBeenCalledTimes(1);
+    expect(mc.registerTool).toHaveBeenCalledTimes(1);
 
     rerender(<App executeFn={execute2} />);
-    expect(mc.provideContext).toHaveBeenCalledTimes(1);
+    expect(mc.registerTool).toHaveBeenCalledTimes(1);
   });
 
   it("execute wrapper calls the latest handler via ref", () => {
@@ -103,15 +135,15 @@ describe("useWebMCPContext", () => {
     }
 
     const { rerender } = render(<App executeFn={execute1} />);
-    const registeredTools = mc.provideContext.mock.calls[0][0].tools;
+    const registeredTools = toolsPassed(mc.registerTool);
     const registeredExecute = registeredTools[0].execute;
 
     registeredExecute({ x: "hello" });
-    expect(execute1).toHaveBeenCalledWith({ x: "hello" });
+    expect(execute1).toHaveBeenCalledWith({ x: "hello" }, undefined);
 
     rerender(<App executeFn={execute2} />);
     registeredExecute({ x: "world" });
-    expect(execute2).toHaveBeenCalledWith({ x: "world" });
+    expect(execute2).toHaveBeenCalledWith({ x: "world" }, undefined);
   });
 
   it("passes outputSchema for each tool when provided", () => {
@@ -129,7 +161,7 @@ describe("useWebMCPContext", () => {
     }
 
     render(<App />);
-    const registeredTools = mc.provideContext.mock.calls[0][0].tools;
+    const registeredTools = toolsPassed(mc.registerTool);
     expect(registeredTools[0].outputSchema).toEqual(outputSchema);
   });
 
@@ -142,7 +174,7 @@ describe("useWebMCPContext", () => {
     }
 
     render(<App />);
-    const registeredTools = mc.provideContext.mock.calls[0][0].tools;
+    const registeredTools = toolsPassed(mc.registerTool);
     expect("outputSchema" in registeredTools[0]).toBe(false);
   });
 
@@ -157,7 +189,7 @@ describe("useWebMCPContext", () => {
     }
 
     render(<App />);
-    const registeredTools = mc.provideContext.mock.calls[0][0].tools;
+    const registeredTools = toolsPassed(mc.registerTool);
     expect(registeredTools[0].annotations).toEqual({ readOnlyHint: true });
   });
 
@@ -170,7 +202,7 @@ describe("useWebMCPContext", () => {
     }
 
     render(<App />);
-    const registeredTools = mc.provideContext.mock.calls[0][0].tools;
+    const registeredTools = toolsPassed(mc.registerTool);
     expect("annotations" in registeredTools[0]).toBe(false);
   });
 
@@ -189,14 +221,14 @@ describe("useWebMCPContext", () => {
     }
 
     render(<App />);
-    const registeredTools = mc.provideContext.mock.calls[0][0].tools;
+    const registeredTools = toolsPassed(mc.registerTool);
     expect(registeredTools).toHaveLength(3);
     expect(registeredTools[0].name).toBe("search");
     expect(registeredTools[1].name).toBe("filter");
     expect(registeredTools[2].name).toBe("sort");
   });
 
-  it("does NOT re-call provideContext with inline stable objects", () => {
+  it("does NOT re-register with inline stable objects", () => {
     const mc = installMockModelContext();
 
     function App() {
@@ -214,13 +246,13 @@ describe("useWebMCPContext", () => {
     }
 
     const { rerender } = render(<App />);
-    expect(mc.provideContext).toHaveBeenCalledTimes(1);
+    expect(mc.registerTool).toHaveBeenCalledTimes(1);
 
     rerender(<App />);
-    expect(mc.provideContext).toHaveBeenCalledTimes(1);
+    expect(mc.registerTool).toHaveBeenCalledTimes(1);
   });
 
-  it("handles missing navigator.modelContext gracefully", () => {
+  it("handles missing document.modelContext gracefully", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     function App() {
@@ -231,14 +263,14 @@ describe("useWebMCPContext", () => {
     const { container } = render(<App />);
     expect(container.textContent).toBe("App");
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("navigator.modelContext is not available"),
+      expect.stringContaining("document.modelContext is not available"),
     );
     warnSpy.mockRestore();
   });
 
-  it("handles provideContext throwing an error", () => {
+  it("handles registerTool throwing an error", () => {
     const mc = installMockModelContext();
-    mc.provideContext.mockImplementation(() => {
+    mc.registerTool.mockImplementation(() => {
       throw new Error("Context error");
     });
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -253,10 +285,10 @@ describe("useWebMCPContext", () => {
     errorSpy.mockRestore();
   });
 
-  it("handles clearContext throwing during cleanup", () => {
-    const mc = installMockModelContext();
-    mc.clearContext.mockImplementation(() => {
-      throw new Error("Clear error");
+  it("handles legacy unregisterTool throwing during cleanup", () => {
+    const mc = installLegacyModelContext();
+    mc.unregisterTool.mockImplementation(() => {
+      throw new Error("Unregister error");
     });
 
     function ContextComponent() {

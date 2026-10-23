@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 import type { WebMCPToolDefinition } from "../types";
-import { getModelContext, warnIfUnavailable } from "../utils/modelContext";
+import {
+  getModelContext,
+  registerToolWithSignal,
+  validateToolDefinition,
+  warnIfUnavailable,
+} from "../utils/modelContext";
 
 /**
  * Produces a stable fingerprint string from a tools array so we can detect
@@ -11,20 +16,24 @@ function toolsFingerprint(tools: WebMCPToolDefinition[]): string {
   return tools
     .map(
       (t) =>
-        `${t.name}::${t.description}::${JSON.stringify(t.inputSchema)}::${JSON.stringify(t.outputSchema ?? {})}::${JSON.stringify(t.annotations ?? {})}`,
+        `${t.name}::${t.title ?? ""}::${t.description}::${JSON.stringify(t.inputSchema)}::${JSON.stringify(t.outputSchema ?? {})}::${JSON.stringify(t.annotations ?? {})}`,
     )
     .join("|");
 }
 
 /**
- * Register multiple WebMCP tools at once using `provideContext()`.
+ * Register a set of WebMCP tools at once.
  *
  * Unlike `useWebMCPTool` which manages a single tool, `useWebMCPContext`
- * replaces the entire set of registered tools. This is useful when the
+ * manages a whole set: when the set changes, every tool in the previous set
+ * is unregistered and the new set is registered. This is useful when the
  * application state changes significantly and you want to expose a
  * completely different set of tools.
  *
- * On unmount, all tools are cleared via `clearContext()`.
+ * The spec removed `provideContext()` / `clearContext()`, so each tool is
+ * registered with `registerTool(tool, { signal })` and unregistered by
+ * aborting its signal. Unlike `provideContext()`, tools registered elsewhere
+ * on the page (e.g. by `useWebMCPTool`) are left untouched.
  *
  * The hook performs a deep comparison of tool definitions (name, description,
  * inputSchema, annotations) so that passing a new array reference on every
@@ -67,56 +76,41 @@ export function useWebMCPContext(config: {
       return;
     }
 
-    // Per spec: registerTool() throws InvalidStateError if name or description
-    // is the empty string. Validate early with a developer-friendly message.
+    // Per spec: registerTool() rejects with InvalidStateError for an invalid
+    // name or empty description. Validate early with a developer-friendly message.
     for (const tool of toolsRef.current) {
-      if (!tool.name) {
-        throw new Error("[react-webmcp] Tool name must be a non-empty string.");
-      }
-      if (!tool.description) {
-        throw new Error(
-          `[react-webmcp] Tool "${tool.name}" description must be a non-empty string.`,
-        );
-      }
+      validateToolDefinition(tool);
     }
 
     // Wrap execute functions so they always call through the latest ref,
     // allowing callers to pass inline arrow functions without triggering
     // the effect.
-    const stableTools = toolsRef.current.map((tool, idx) => {
+    const unregisters = toolsRef.current.map((tool, idx) => {
       const def: Record<string, unknown> = {
         name: tool.name,
         description: tool.description,
         inputSchema: tool.inputSchema,
-        execute: (input: Record<string, unknown>) => {
-          return toolsRef.current[idx].execute(input);
+        execute: (input: Record<string, unknown>, options?: { signal: AbortSignal }) => {
+          return toolsRef.current[idx].execute(input, options);
         },
       };
+      if (tool.title) {
+        def.title = tool.title;
+      }
       if (tool.annotations) {
         def.annotations = tool.annotations;
       }
       if (tool.outputSchema) {
         def.outputSchema = tool.outputSchema;
       }
-      return def;
+      return registerToolWithSignal(
+        mc,
+        def as unknown as Parameters<typeof mc.registerTool>[0],
+      );
     });
 
-    try {
-      mc.provideContext({
-        tools: stableTools as unknown as Parameters<typeof mc.provideContext>[0]["tools"],
-      });
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[react-webmcp] Failed to provide context:", err);
-      }
-    }
-
     return () => {
-      try {
-        mc.clearContext();
-      } catch {
-        // Context may have already been cleared
-      }
+      for (const unregister of unregisters) unregister();
     };
   }, [fingerprint]);
 }

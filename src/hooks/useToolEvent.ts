@@ -1,11 +1,13 @@
 import { useEffect } from "react";
+import { getModelContext } from "../utils/modelContext";
 
 /**
- * Listen for WebMCP tool lifecycle events on the window.
+ * Listen for WebMCP tool lifecycle events.
  *
- * The browser fires `toolactivated` when an AI agent invokes a declarative
- * tool (form fields are pre-filled) and `toolcancel` when the agent or
- * user cancels the operation.
+ * Per spec, the browser fires `toolactivated` (a `ToolActivatedEvent`) at
+ * `document.modelContext` when a tool's execution begins and `toolcancel`
+ * when it is cancelled. Older Chrome builds and the declarative (form) API
+ * fire them at `window`; both targets are observed.
  *
  * @param event - The event name: "toolactivated" or "toolcancel"
  * @param callback - Called with the tool name when the event fires
@@ -33,9 +35,12 @@ export function useToolEvent(
       callback(toolName);
     };
 
+    const mc = getModelContext();
     window.addEventListener(event, handler);
+    mc?.addEventListener?.(event, handler);
     return () => {
       window.removeEventListener(event, handler);
+      mc?.removeEventListener?.(event, handler);
     };
   }, [event, callback, toolNameFilter]);
 }

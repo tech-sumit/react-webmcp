@@ -48,7 +48,7 @@ describe("WebMCPTool", () => {
     expect(mc.registerTool).toHaveBeenCalledTimes(1);
 
     rerender(<App show={false} />);
-    expect(mc.unregisterTool).toHaveBeenCalledWith("test");
+    expect(mc.registerTool.mock.calls[0][1]!.signal!.aborted).toBe(true);
   });
 
   it("renders children transparently", () => {
@@ -64,7 +64,7 @@ describe("WebMCPTool", () => {
     expect(container.textContent).toBe("Hello");
   });
 
-  it("handles missing navigator.modelContext gracefully", () => {
+  it("handles missing document.modelContext gracefully", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const { container } = render(
@@ -75,7 +75,7 @@ describe("WebMCPTool", () => {
 
     expect(container.textContent).toBe("Content");
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("navigator.modelContext is not available"),
+      expect.stringContaining("document.modelContext is not available"),
     );
     warnSpy.mockRestore();
   });

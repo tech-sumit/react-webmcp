@@ -4,6 +4,7 @@ import { render, cleanup, act } from "@testing-library/react";
 import { useWebMCPTool } from "../hooks/useWebMCPTool";
 import {
   installMockModelContext,
+  installLegacyModelContext,
   removeMockModelContext,
   createToolConfig,
 } from "./helpers";
@@ -51,11 +52,49 @@ describe("useWebMCPTool", () => {
 
     const { rerender } = render(<App show={true} />);
     expect(mc.registerTool).toHaveBeenCalledTimes(1);
+    const signal = mc.registerTool.mock.calls[0][1]!.signal!;
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal.aborted).toBe(false);
+
+    rerender(<App show={false} />);
+    // Per spec, tools are unregistered by aborting the registration signal
+    expect(signal.aborted).toBe(true);
+  });
+
+  it("falls back to unregisterTool() on legacy implementations", () => {
+    const mc = installLegacyModelContext();
+    const config = createToolConfig();
+
+    function ToolComponent() {
+      useWebMCPTool(config);
+      return <div>Tool</div>;
+    }
+
+    function App({ show }: { show: boolean }) {
+      return show ? <ToolComponent /> : null;
+    }
+
+    const { rerender } = render(<App show={true} />);
+    expect(mc.registerTool).toHaveBeenCalledTimes(1);
     expect(mc.unregisterTool).not.toHaveBeenCalled();
 
     rerender(<App show={false} />);
     expect(mc.unregisterTool).toHaveBeenCalledTimes(1);
     expect(mc.unregisterTool).toHaveBeenCalledWith("test-tool");
+  });
+
+  it("prefers document.modelContext over navigator.modelContext", () => {
+    const legacy = installLegacyModelContext();
+    const mc = installMockModelContext();
+
+    function App() {
+      useWebMCPTool(createToolConfig());
+      return null;
+    }
+
+    render(<App />);
+    expect(mc.registerTool).toHaveBeenCalledTimes(1);
+    expect(legacy.registerTool).not.toHaveBeenCalled();
   });
 
   it("re-registers when the tool name changes", () => {
@@ -71,7 +110,7 @@ describe("useWebMCPTool", () => {
     expect(mc.registerTool.mock.calls[0][0].name).toBe("tool-a");
 
     rerender(<App name="tool-b" />);
-    expect(mc.unregisterTool).toHaveBeenCalledWith("tool-a");
+    expect(mc.registerTool.mock.calls[0][1]!.signal!.aborted).toBe(true);
     expect(mc.registerTool).toHaveBeenCalledTimes(2);
     expect(mc.registerTool.mock.calls[1][0].name).toBe("tool-b");
   });
@@ -142,12 +181,91 @@ describe("useWebMCPTool", () => {
     const registered = mc.registerTool.mock.calls[0][0];
 
     registered.execute({ query: "hello" });
-    expect(execute1).toHaveBeenCalledWith({ query: "hello" });
+    expect(execute1).toHaveBeenCalledWith({ query: "hello" }, undefined);
     expect(execute2).not.toHaveBeenCalled();
 
     rerender(<App executeFn={execute2} />);
     registered.execute({ query: "world" });
-    expect(execute2).toHaveBeenCalledWith({ query: "world" });
+    expect(execute2).toHaveBeenCalledWith({ query: "world" }, undefined);
+  });
+
+  it("forwards the execute options ({ signal }) to the handler", () => {
+    const mc = installMockModelContext();
+    const execute = vi.fn();
+
+    function App() {
+      useWebMCPTool(createToolConfig({ execute }));
+      return null;
+    }
+
+    render(<App />);
+    const options = { signal: new AbortController().signal };
+    (mc.registerTool.mock.calls[0][0].execute as (i: unknown, o: unknown) => void)({ query: "x" }, options);
+    expect(execute).toHaveBeenCalledWith({ query: "x" }, options);
+  });
+
+  it("passes title and exposedTo when provided", () => {
+    const mc = installMockModelContext();
+
+    function App() {
+      useWebMCPTool(
+        createToolConfig({ title: "Test tool", exposedTo: ["https://agent.example"] }),
+      );
+      return null;
+    }
+
+    render(<App />);
+    expect(mc.registerTool.mock.calls[0][0].title).toBe("Test tool");
+    expect(mc.registerTool.mock.calls[0][1]!.exposedTo).toEqual(["https://agent.example"]);
+  });
+
+  it("passes the spec annotations", () => {
+    const mc = installMockModelContext();
+    const annotations = {
+      readOnlyHint: false,
+      untrustedContentHint: true,
+      consequentialHint: true,
+      debugging: false,
+    };
+
+    function App() {
+      useWebMCPTool(createToolConfig({ annotations }));
+      return null;
+    }
+
+    render(<App />);
+    expect(mc.registerTool.mock.calls[0][0].annotations).toEqual(annotations);
+  });
+
+  it("throws a helpful error for names the spec rejects", () => {
+    installMockModelContext();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    function App() {
+      useWebMCPTool(createToolConfig({ name: "bad name!" }));
+      return null;
+    }
+
+    expect(() => render(<App />)).toThrow(/Tool name "bad name!" is invalid/);
+    errorSpy.mockRestore();
+  });
+
+  it("logs a warning when registerTool rejects with InvalidStateError", async () => {
+    const mc = installMockModelContext();
+    mc.registerTool.mockImplementation(() =>
+      Promise.reject(new DOMException("Duplicate", "InvalidStateError")),
+    );
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    function App() {
+      useWebMCPTool(createToolConfig());
+      return null;
+    }
+
+    render(<App />);
+    await act(async () => {});
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("InvalidStateError"));
+    warnSpy.mockRestore();
   });
 
   it("does NOT re-register when inline schema objects have same values", () => {
@@ -267,7 +385,7 @@ describe("useWebMCPTool", () => {
     expect(mc.registerTool).toHaveBeenCalledTimes(2);
   });
 
-  it("handles missing navigator.modelContext gracefully", () => {
+  it("handles missing document.modelContext gracefully", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     function App() {
@@ -278,7 +396,7 @@ describe("useWebMCPTool", () => {
     const { container } = render(<App />);
     expect(container.textContent).toBe("App");
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("navigator.modelContext is not available"),
+      expect.stringContaining("document.modelContext is not available"),
     );
     warnSpy.mockRestore();
   });
@@ -301,8 +419,8 @@ describe("useWebMCPTool", () => {
     errorSpy.mockRestore();
   });
 
-  it("handles unregisterTool throwing during cleanup", () => {
-    const mc = installMockModelContext();
+  it("handles legacy unregisterTool throwing during cleanup", () => {
+    const mc = installLegacyModelContext();
     mc.unregisterTool.mockImplementation(() => {
       throw new Error("Unregister failed");
     });
