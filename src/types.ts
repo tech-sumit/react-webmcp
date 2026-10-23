@@ -118,8 +118,11 @@ export interface WebMCPToolDefinition {
   title?: string;
   /** Human-readable description for agents. */
   description: string;
-  /** JSON Schema describing the tool's input parameters. */
-  inputSchema: JSONSchema | Record<string, never>;
+  /**
+   * JSON Schema describing the tool's input parameters. Optional per spec;
+   * a tool without one still receives an input object.
+   */
+  inputSchema?: JSONSchema | Record<string, never>;
   /**
    * Optional JSON Schema describing the tool's output.
    *
@@ -152,8 +155,8 @@ export interface UseWebMCPToolConfig {
   title?: string;
   /** Human-readable description for agents. */
   description: string;
-  /** JSON Schema for the tool's input parameters. */
-  inputSchema: JSONSchema | Record<string, never>;
+  /** JSON Schema for the tool's input parameters (optional per spec). */
+  inputSchema?: JSONSchema | Record<string, never>;
   /**
    * Optional JSON Schema for the tool's output.
    *

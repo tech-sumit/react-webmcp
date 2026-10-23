@@ -37,6 +37,18 @@ describe("useWebMCPTool", () => {
     expect(typeof registered.execute).toBe("function");
   });
 
+  it("omits inputSchema when the tool has none (optional per spec)", () => {
+    const mc = installMockModelContext();
+
+    function App() {
+      useWebMCPTool({ name: "ping", description: "Ping", execute: () => "pong" });
+      return null;
+    }
+
+    render(<App />);
+    expect("inputSchema" in mc.registerTool.mock.calls[0][0]).toBe(false);
+  });
+
   it("unregisters the tool on unmount", () => {
     const mc = installMockModelContext();
     const config = createToolConfig();

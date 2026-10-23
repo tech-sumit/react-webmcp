@@ -13,6 +13,7 @@ Aligns with the October 2026 WebMCP draft and Chromium, which moved the API to `
 
 ### Features
 
+- **`inputSchema` is optional** on `useWebMCPTool` / `useWebMCPContext` tool definitions, as in the spec's `ModelContextTool`; it is left out of `registerTool()` when not given
 - **Signal-based unregistration**: `useWebMCPTool` registers with `registerTool(tool, { signal })` and unregisters by aborting the signal. Legacy synchronous implementations still use `unregisterTool()`
 - **Async registration errors**: rejected `registerTool()` promises are logged in development (with a specific warning for `InvalidStateError`) instead of going unhandled
 - **New tool fields**: `title`, `exposedTo` and the spec annotations `untrustedContentHint`, `consequentialHint` and `debugging`

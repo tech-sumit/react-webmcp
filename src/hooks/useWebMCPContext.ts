@@ -89,13 +89,15 @@ export function useWebMCPContext(config: {
       const def: Record<string, unknown> = {
         name: tool.name,
         description: tool.description,
-        inputSchema: tool.inputSchema,
         execute: (input: Record<string, unknown>, options?: { signal: AbortSignal }) => {
           return toolsRef.current[idx].execute(input, options);
         },
       };
       if (tool.title) {
         def.title = tool.title;
+      }
+      if (tool.inputSchema) {
+        def.inputSchema = tool.inputSchema;
       }
       if (tool.annotations) {
         def.annotations = tool.annotations;

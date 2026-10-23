@@ -78,13 +78,15 @@ export function useWebMCPTool(config: UseWebMCPToolConfig): void {
     const toolDef: Record<string, unknown> = {
       name: config.name,
       description: config.description,
-      inputSchema: config.inputSchema,
       execute: (input: Record<string, unknown>, options?: { signal: AbortSignal }) => {
         return configRef.current.execute(input, options);
       },
     };
     if (config.title) {
       toolDef.title = config.title;
+    }
+    if (config.inputSchema) {
+      toolDef.inputSchema = config.inputSchema;
     }
     if (config.outputSchema) {
       toolDef.outputSchema = config.outputSchema;

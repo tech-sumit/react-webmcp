@@ -190,7 +190,7 @@ Registers a single tool with `document.modelContext.registerTool(tool, { signal 
 | `name` | `string` | Unique tool identifier: 1–128 chars of `[A-Za-z0-9_.-]` |
 | `title` | `string` | *(optional)* Human-readable label shown in browser UI |
 | `description` | `string` | Human-readable description for agents |
-| `inputSchema` | `JSONSchema` | JSON Schema for input parameters |
+| `inputSchema` | `JSONSchema` | *(optional)* JSON Schema for input parameters |
 | `outputSchema` | `JSONSchema` | *(optional, library extension)* JSON Schema for output — not in the spec |
 | `annotations` | `ToolAnnotations` | *(optional)* `readOnlyHint`, `untrustedContentHint`, `consequentialHint`, `debugging` |
 | `exposedTo` | `string[]` | *(optional)* Extra origins in the frame tree the tool is exposed to |
