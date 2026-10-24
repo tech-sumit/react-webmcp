@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.4.0 (2026-10-23)
+
+Aligns with the October 2026 WebMCP draft and Chromium, which moved the API to `document.modelContext` and removed `navigator.modelContext` / `navigator.modelContextTesting` in Chrome 152.
+
+### Breaking changes
+
+- **`getModelContext()` prefers `document.modelContext`**, falling back to the legacy `navigator.modelContext`
+- **`useWebMCPContext` no longer calls `provideContext()` / `clearContext()`** (removed from the spec). It registers each tool with `registerTool()` and unregisters them on change/unmount, so tools registered elsewhere on the page are left alone
+- **Tool names are validated against the spec** (1–128 chars of `[A-Za-z0-9_.-]`); invalid names throw a descriptive error, as empty names already did
+- `ModelContext` type now describes the spec interface (`registerTool(tool, options): Promise<void>`, `getTools()`, `executeTool()`, `EventTarget`); `unregisterTool` / `provideContext` / `clearContext` are optional and deprecated
+
+### Features
+
+- **`inputSchema` is optional** on `useWebMCPTool` / `useWebMCPContext` tool definitions, as in the spec's `ModelContextTool`; it is left out of `registerTool()` when not given
+- **Signal-based unregistration**: `useWebMCPTool` registers with `registerTool(tool, { signal })` and unregisters by aborting the signal. Legacy synchronous implementations still use `unregisterTool()`
+- **Async registration errors**: rejected `registerTool()` promises are logged in development (with a specific warning for `InvalidStateError`) instead of going unhandled
+- **New tool fields**: `title`, `exposedTo` and the spec annotations `untrustedContentHint`, `consequentialHint` and `debugging`
+- **`execute(input, { signal })`**: handlers receive the browser's cancellation signal
+- **In-page agent helpers**: `listWebMCPTools()` and `executeWebMCPTool(nameOrTool, input, { signal })`; the latter retries with a JSON-string input for Chrome 153
+- **Events on `document.modelContext`**: `useToolEvent`, `<WebMCPForm>` and `<WebMCP.Tool>` listen for `toolactivated` / `toolcancel` on `document.modelContext` as well as `window`
+- New exported types: `RegisteredTool`, `ToolExecuteOptions`, `ModelContextRegisterToolOptions`, `ModelContextGetToolsOptions`, `ModelContextExecuteToolOptions`
+
+### Deprecations
+
+- `isWebMCPTestingAvailable()`, `ModelContextTesting` and `WebMCPProvider`'s `testingAvailable` (the testing API was removed in Chrome 152)
+
+### Notes
+
+- The declarative API (`toolname` attributes) was removed from the spec text for now but remains in the explainer and in Chrome; the components are unchanged
+- Verified against Chrome 153.0.8010.12: registration, `getTools()`, `executeTool()` and signal-based unregistration on unmount/remount
+
+
 ## 0.3.0 (2026-03-04)
 
 ### Features

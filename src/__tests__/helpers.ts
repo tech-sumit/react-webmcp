@@ -1,9 +1,37 @@
 import { vi } from "vitest";
 
 /**
- * Installs a mock `navigator.modelContext` and returns the mock object.
+ * Installs a spec-shaped mock `document.modelContext` and returns it.
+ *
+ * `registerTool(tool, options)` resolves like the real API and records the
+ * options so tests can assert on `options.signal` (aborting it is how tools
+ * are unregistered per spec).
  */
 export function installMockModelContext() {
+  const target = new EventTarget();
+  const mc = Object.assign(target, {
+    registerTool: vi.fn(
+      (_tool: Record<string, unknown>, _options?: { signal?: AbortSignal; exposedTo?: string[] }) =>
+        Promise.resolve(),
+    ),
+    getTools: vi.fn(() => Promise.resolve([] as Array<Record<string, unknown>>)),
+    executeTool: vi.fn(() => Promise.resolve("")),
+    ontoolchange: null,
+  });
+  Object.defineProperty(document, "modelContext", {
+    value: mc,
+    configurable: true,
+    writable: true,
+  });
+  return mc;
+}
+
+/**
+ * Installs a legacy (Chrome ≤151) mock `navigator.modelContext` with a
+ * synchronous `registerTool()` and `unregisterTool()` / `provideContext()` /
+ * `clearContext()`, and returns it.
+ */
+export function installLegacyModelContext() {
   const mc = {
     registerTool: vi.fn(),
     unregisterTool: vi.fn(),
@@ -19,16 +47,16 @@ export function installMockModelContext() {
 }
 
 /**
- * Removes the mock `navigator.modelContext` if installed.
+ * Removes the mock `document.modelContext` / `navigator.modelContext` if installed.
  */
 export function removeMockModelContext() {
-  const desc = Object.getOwnPropertyDescriptor(
-    window.navigator,
-    "modelContext",
-  );
-  if (desc) {
+  if (Object.getOwnPropertyDescriptor(document, "modelContext")) {
     // biome-ignore lint: we need delete here
-    delete (window.navigator as Record<string, unknown>).modelContext;
+    delete (document as unknown as Record<string, unknown>).modelContext;
+  }
+  if (Object.getOwnPropertyDescriptor(window.navigator, "modelContext")) {
+    // biome-ignore lint: we need delete here
+    delete (window.navigator as unknown as Record<string, unknown>).modelContext;
   }
 }
 
@@ -60,7 +88,7 @@ export function removeMockModelContextTesting() {
   );
   if (desc) {
     // biome-ignore lint: we need delete here
-    delete (window.navigator as Record<string, unknown>).modelContextTesting;
+    delete (window.navigator as unknown as Record<string, unknown>).modelContextTesting;
   }
 }
 

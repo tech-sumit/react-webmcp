@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from "react";
-import type { ToolAnnotations } from "../types";
+import type { ToolAnnotations, ToolExecuteOptions } from "../types";
 import type { FieldDefinition } from "./types";
 import { useSchemaCollector, ToolContext } from "./useSchemaCollector";
 import { useWebMCPTool } from "../hooks/useWebMCPTool";
+import { getModelContext } from "../utils/modelContext";
 
 /**
  * Props for the `WebMCP.Tool` component.
@@ -10,10 +11,18 @@ import { useWebMCPTool } from "../hooks/useWebMCPTool";
 export interface WebMCPToolProps {
   /** Unique tool name exposed to AI agents. */
   name: string;
+  /** Optional human-readable label shown in browser UI. */
+  title?: string;
   /** Human-readable description of what this tool does. */
   description: string;
-  /** Handler called when an AI agent invokes this tool. */
-  onExecute: (input: Record<string, unknown>) => unknown | Promise<unknown>;
+  /**
+   * Handler called when an AI agent invokes this tool. Receives `{ signal }`,
+   * aborted if the execution is cancelled.
+   */
+  onExecute: (
+    input: Record<string, unknown>,
+    options?: ToolExecuteOptions,
+  ) => unknown | Promise<unknown>;
   /** Optional field overrides / enrichment keyed by field name. */
   fields?: Record<string, Partial<FieldDefinition>>;
   /** When true, schema validation issues throw instead of warn. */
@@ -56,6 +65,7 @@ export interface WebMCPToolProps {
  */
 export function WebMCPTool({
   name,
+  title,
   description,
   onExecute,
   fields: fieldsProp,
@@ -77,10 +87,11 @@ export function WebMCPTool({
 
   useWebMCPTool({
     name,
+    title,
     description,
     inputSchema: schema,
     annotations,
-    execute: (input) => executeRef.current(input),
+    execute: (input, options) => executeRef.current(input, options),
   });
 
   // Listen for toolactivated / toolcancel events (same pattern as WebMCPForm)
@@ -106,12 +117,18 @@ export function WebMCPTool({
       }
     };
 
+    // Spec: fired at document.modelContext; legacy/declarative: at window.
+    const mc = getModelContext();
     window.addEventListener("toolactivated", handleActivated);
     window.addEventListener("toolcancel", handleCancel);
+    mc?.addEventListener?.("toolactivated", handleActivated);
+    mc?.addEventListener?.("toolcancel", handleCancel);
 
     return () => {
       window.removeEventListener("toolactivated", handleActivated);
       window.removeEventListener("toolcancel", handleCancel);
+      mc?.removeEventListener?.("toolactivated", handleActivated);
+      mc?.removeEventListener?.("toolcancel", handleCancel);
     };
   }, [name, onToolActivated, onToolCancel]);
 

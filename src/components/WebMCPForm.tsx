@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import type { WebMCPFormSubmitEvent } from "../types";
+import { getModelContext } from "../utils/modelContext";
 
 export interface WebMCPFormProps
   extends Omit<React.FormHTMLAttributes<HTMLFormElement>, "onSubmit"> {
@@ -77,12 +78,18 @@ export function WebMCPForm({
       }
     };
 
+    // Spec: fired at document.modelContext; legacy/declarative: at window.
+    const mc = getModelContext();
     window.addEventListener("toolactivated", handleActivated);
     window.addEventListener("toolcancel", handleCancel);
+    mc?.addEventListener?.("toolactivated", handleActivated);
+    mc?.addEventListener?.("toolcancel", handleCancel);
 
     return () => {
       window.removeEventListener("toolactivated", handleActivated);
       window.removeEventListener("toolcancel", handleCancel);
+      mc?.removeEventListener?.("toolactivated", handleActivated);
+      mc?.removeEventListener?.("toolcancel", handleCancel);
     };
   }, [toolName, onToolActivated, onToolCancel]);
 

@@ -13,7 +13,7 @@ A restaurant reservation form built entirely with the **Declarative API**.
 
 ## How it works
 
-The declarative components render standard HTML elements with custom attributes (`toolname`, `tooldescription`, `toolparamdescription`, `toolautosubmit`). Chrome 146+ reads these attributes and automatically registers the form as a WebMCP tool — no JavaScript registration needed.
+The declarative components render standard HTML elements with custom attributes (`toolname`, `tooldescription`, `toolparamdescription`, `toolautosubmit`). Chrome reads these attributes and automatically registers the form as a WebMCP tool — no JavaScript registration needed. (The declarative API currently lives in the WebMCP explainer rather than the spec text.)
 
 The `onSubmit` handler receives a `WebMCPFormSubmitEvent` with `agentInvoked` (whether an AI triggered the submit) and `respondWith()` (to return a result to the agent).
 

@@ -22,7 +22,7 @@ npm install
 npm run dev
 ```
 
-Open the Vite dev server URL (default `http://localhost:5173`) in **Chrome 146+** with the "WebMCP for testing" flag enabled to see tools registered in the Model Context Tool Inspector.
+Open the Vite dev server URL (default `http://localhost:5173`) in **Chrome 149+** with `chrome://flags/#enable-webmcp-testing` enabled to see tools registered in the Model Context Tool Inspector.
 
 ## Which API should I use?
 
