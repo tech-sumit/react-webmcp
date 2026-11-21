@@ -1,7 +1,7 @@
 import type {
   ModelContext,
   ModelContextRegisterToolOptions,
-  RegisteredTool,
+  Tool,
   WebMCPToolDefinition,
 } from "../types";
 
@@ -59,6 +59,7 @@ export function validateToolDefinition(tool: {
   name: string;
   description: string;
   inputSchema?: unknown;
+  outputSchema?: unknown;
 }): void {
   if (!tool.name) {
     throw new Error("[react-webmcp] Tool name must be a non-empty string.");
@@ -74,15 +75,22 @@ export function validateToolDefinition(tool: {
       `[react-webmcp] Tool "${tool.name}" description must be a non-empty string.`,
     );
   }
-  // Pre-check inputSchema serialization (the browser stringifies it
+  // Pre-check schema serialization (the browser stringifies both schemas
   // internally; circular refs or non-serializable values throw).
-  if (process.env.NODE_ENV !== "production" && tool.inputSchema) {
-    try {
-      JSON.stringify(tool.inputSchema);
-    } catch (e) {
-      throw new Error(
-        `[react-webmcp] Tool "${tool.name}" inputSchema is not JSON-serializable: ${e instanceof Error ? e.message : String(e)}`,
-      );
+  if (process.env.NODE_ENV !== "production") {
+    for (const key of ["inputSchema", "outputSchema"] as const) {
+      if (!tool[key]) continue;
+      let json: string | undefined;
+      try {
+        json = JSON.stringify(tool[key]);
+      } catch (e) {
+        throw new Error(
+          `[react-webmcp] Tool "${tool.name}" ${key} is not JSON-serializable: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+      if (json === undefined) {
+        throw new Error(`[react-webmcp] Tool "${tool.name}" ${key} is not JSON-serializable.`);
+      }
     }
   }
 }
@@ -154,14 +162,14 @@ export function registerToolWithSignal(
  * `document.modelContext.getTools()`. Useful for in-page agents.
  * Returns an empty array when WebMCP is unavailable.
  */
-export async function listWebMCPTools(): Promise<RegisteredTool[]> {
+export async function listWebMCPTools(): Promise<Tool[]> {
   const mc = getModelContext();
   if (!mc || typeof mc.getTools !== "function") return [];
   return mc.getTools();
 }
 
 /**
- * Executes a WebMCP tool by name (or `RegisteredTool`) via
+ * Executes a WebMCP tool by name (or a `Tool` from `getTools()`) via
  * `document.modelContext.executeTool()` and resolves with the
  * JSON-stringified result.
  *
@@ -169,7 +177,7 @@ export async function listWebMCPTools(): Promise<RegisteredTool[]> {
  * to the JSON-string input Chrome 153 still expects.
  */
 export async function executeWebMCPTool(
-  tool: string | RegisteredTool,
+  tool: string | Tool,
   input: Record<string, unknown> = {},
   options: { signal?: AbortSignal } = {},
 ): Promise<string> {

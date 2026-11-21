@@ -191,7 +191,7 @@ Registers a single tool with `document.modelContext.registerTool(tool, { signal 
 | `title` | `string` | *(optional)* Human-readable label shown in browser UI |
 | `description` | `string` | Human-readable description for agents |
 | `inputSchema` | `JSONSchema` | *(optional)* JSON Schema for input parameters |
-| `outputSchema` | `JSONSchema` | *(optional, library extension)* JSON Schema for output — not in the spec |
+| `outputSchema` | `JSONSchema` | *(optional)* JSON Schema for the tool's output (spec since Nov 2026; agents may reject outputs that don't validate) |
 | `annotations` | `ToolAnnotations` | *(optional)* `readOnlyHint`, `untrustedContentHint`, `consequentialHint`, `debugging` |
 | `exposedTo` | `string[]` | *(optional)* Extra origins in the frame tree the tool is exposed to |
 | `execute` | `(input, { signal }) => any` | Handler called on invocation; `signal` aborts if the agent cancels |
@@ -333,11 +333,11 @@ Returns `document.modelContext`, falling back to `navigator.modelContext`, or `n
 
 #### `listWebMCPTools()`
 
-Resolves with the tools exposed to this document (`document.modelContext.getTools()`), or `[]` when WebMCP is unavailable.
+Resolves with the `Tool` objects exposed to this document (`document.modelContext.getTools()`), or `[]` when WebMCP is unavailable. Each `Tool` identifies one registration and carries `name`, `title`, `description`, `inputSchema`, `outputSchema`, `source`, `origin` and `annotations`.
 
 #### `executeWebMCPTool(nameOrTool, input?, { signal }?)`
 
-Runs a tool via `document.modelContext.executeTool()` and resolves with its JSON-stringified result. Passes `input` as an object per spec and retries with a JSON string for Chrome 153, which still expects one.
+Runs a tool via `document.modelContext.executeTool()` and resolves with its JSON-stringified result. Passes `input` as an object per spec and retries with a JSON string for Chrome 153, which still expects one. A `Tool` whose registration has since been removed rejects with `NotFoundError`, even if a same-named tool was registered again; pass the name to look up the current one.
 
 ## Tool Annotations
 
@@ -418,7 +418,7 @@ import type {
   WebMCPFieldProps,
   FieldDefinition,
   ModelContext,
-  RegisteredTool,
+  Tool, // was RegisteredTool (still exported as a deprecated alias)
 } from "react-webmcp";
 ```
 

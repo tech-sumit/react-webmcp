@@ -17,6 +17,7 @@ export type {
   ModelContextRegisterToolOptions,
   ModelContextGetToolsOptions,
   ModelContextExecuteToolOptions,
+  Tool,
   RegisteredTool,
   ModelContextTesting,
 } from "./types";

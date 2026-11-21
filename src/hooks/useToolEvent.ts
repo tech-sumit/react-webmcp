@@ -5,7 +5,8 @@ import { getModelContext } from "../utils/modelContext";
  * Listen for WebMCP tool lifecycle events.
  *
  * Per spec, the browser fires `toolactivated` (a `ToolActivatedEvent`) at
- * `document.modelContext` when a tool's execution begins and `toolcancel`
+ * `document.modelContext` right after a tool's `execute` callback is
+ * invoked and `toolcancel`
  * when it is cancelled. Older Chrome builds and the declarative (form) API
  * fire them at `window`; both targets are observed.
  *

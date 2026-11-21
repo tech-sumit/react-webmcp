@@ -124,12 +124,9 @@ export interface WebMCPToolDefinition {
    */
   inputSchema?: JSONSchema | Record<string, never>;
   /**
-   * Optional JSON Schema describing the tool's output.
-   *
-   * **Library extension** — `outputSchema` is NOT part of the browser's
-   * `ModelContextTool` dictionary.  It is silently ignored by
-   * `document.modelContext.registerTool()` but can be used by higher-level
-   * agent frameworks that inspect tool metadata.
+   * Optional JSON Schema describing the tool's output. Agents may reject
+   * outputs that do not validate. Part of the spec's `ModelContextTool`
+   * since Nov 2026; browsers that predate it ignore the member.
    */
   outputSchema?: JSONSchema | JSONSchemaProperty;
   /** Optional metadata hints for agents. */
@@ -157,11 +154,7 @@ export interface UseWebMCPToolConfig {
   description: string;
   /** JSON Schema for the tool's input parameters (optional per spec). */
   inputSchema?: JSONSchema | Record<string, never>;
-  /**
-   * Optional JSON Schema for the tool's output.
-   *
-   * **Library extension** — not part of the browser's native WebIDL.
-   */
+  /** Optional JSON Schema for the tool's output (spec `outputSchema`). */
   outputSchema?: JSONSchema | JSONSchemaProperty;
   /** Optional metadata hints for agents. */
   annotations?: ToolAnnotations;
@@ -233,22 +226,36 @@ export interface ModelContextExecuteToolOptions {
   signal?: AbortSignal;
 }
 
-/** A tool as returned by `document.modelContext.getTools()`. */
-export interface RegisteredTool {
-  name: string;
-  title?: string;
-  description: string;
+/**
+ * A tool as returned by `document.modelContext.getTools()` (the spec's
+ * `Tool` interface). Each object identifies one specific registration:
+ * passing it to `executeTool()` after the tool was unregistered rejects with
+ * `NotFoundError`, even if a tool with the same name was registered since.
+ * Tool objects can't be constructed by script; get them from `getTools()`.
+ */
+export interface Tool {
+  readonly name: string;
+  /** Empty string when the tool has no title. */
+  readonly title?: string;
+  readonly description: string;
   /**
-   * JSON Schema object per spec. Chrome 153 still returns it as a JSON
-   * string, so handle both.
+   * JSON Schema object, or `null` when none was given. Chrome 153 still
+   * returns a JSON string (and omits it when absent), so handle all three.
    */
-  inputSchema?: JSONSchema | string;
-  /** The `Window` of the document that registered the tool. */
-  window: Window;
+  readonly inputSchema?: JSONSchema | string | null;
+  /** JSON Schema for the tool's output, or `null` when none was given. */
+  readonly outputSchema?: JSONSchema | JSONSchemaProperty | string | null;
+  /** The `WindowProxy` of the document that registered the tool. */
+  readonly source?: Window | null;
+  /** @deprecated Older drafts (`RegisteredTool.window`); use `source`. */
+  readonly window?: Window;
   /** Serialized origin of the document that registered the tool. */
-  origin: string;
-  annotations?: ToolAnnotations;
+  readonly origin: string;
+  readonly annotations?: ToolAnnotations | null;
 }
+
+/** @deprecated Renamed to `Tool` in the Nov 2026 WebMCP draft. */
+export type RegisteredTool = Tool;
 
 export interface ModelContext extends EventTarget {
   /**
@@ -261,15 +268,15 @@ export interface ModelContext extends EventTarget {
     tool: WebMCPToolDefinition,
     options?: ModelContextRegisterToolOptions,
   ): Promise<void>;
-  /** Tools exposed to this document (from it and its descendant frames), sorted by name. */
-  getTools(options?: ModelContextGetToolsOptions): Promise<RegisteredTool[]>;
+  /** Tools exposed to this document by active documents in the same tab, sorted by name. */
+  getTools(options?: ModelContextGetToolsOptions): Promise<Tool[]>;
   /**
    * Execute a tool. Resolves with the JSON-stringified result.
    * Chrome 153 still expects `input` as a JSON string; see
    * `executeWebMCPTool()` for a helper that handles both.
    */
   executeTool(
-    tool: RegisteredTool,
+    tool: Tool,
     input?: Record<string, unknown> | string,
     options?: ModelContextExecuteToolOptions,
   ): Promise<string>;

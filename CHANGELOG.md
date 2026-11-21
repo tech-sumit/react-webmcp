@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0 (2026-11-21)
+
+Tracks the November 2026 WebMCP draft.
+
+### Features
+
+- **`outputSchema` is now spec**: `outputSchema` on `useWebMCPTool`, `useWebMCPContext` and `WebMCPToolDefinition` is part of the spec's `ModelContextTool` (webmachinelearning/webmcp#254), so it is no longer documented as a library extension. Like `inputSchema`, it is checked for JSON-serializability in development builds
+- **`Tool` type**: `getTools()` / `listWebMCPTools()` return the spec's new `Tool` interface (#348), with `source` (replacing `window`), `outputSchema`, and `null` for absent schemas and annotations. `RegisteredTool` remains as a deprecated alias
+- `useToolEvent` docs: `toolactivated` now fires right after the tool's `execute` callback is invoked (#371)
+
+
 ## 0.4.0 (2026-10-23)
 
 Aligns with the October 2026 WebMCP draft and Chromium, which moved the API to `document.modelContext` and removed `navigator.modelContext` / `navigator.modelContextTesting` in Chrome 152.
