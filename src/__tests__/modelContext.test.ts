@@ -83,6 +83,14 @@ describe("ModelContext utilities", () => {
   });
 
   describe("validateToolDefinition", () => {
+    it("rejects a non-serializable outputSchema", () => {
+      const schema: Record<string, unknown> = { type: "object" };
+      schema.self = schema;
+      expect(() =>
+        validateToolDefinition({ name: "t", description: "d", outputSchema: schema }),
+      ).toThrow(/outputSchema is not JSON-serializable/);
+    });
+
     it("accepts spec-valid names", () => {
       expect(() =>
         validateToolDefinition({ name: "search_flights.v2-beta", description: "d" }),
